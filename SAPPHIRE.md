@@ -27,7 +27,14 @@ way Zen builds on Firefox or Helium on Chromium.
 - **The agent waits for you.** When an agent opens a browser or device, or a turn ends with a
   diff, Sapphire marks the Review switch with a dot instead of pulling you out of Chat. An agent
   that explicitly reveals a page still switches you to Review.
-- **A quieter look.** Flat surfaces, a sapphire accent, few animations, and a plain wordmark.
+- **A calmer, more modern look.** Instrument Sans, cool Siip-style greys with a navy ink dark
+  theme, a sapphire accent, softer radii and a rounded composer with a focus glow.
+- **A home screen worth opening.** A time-of-day greeting, a larger headline, a soft sapphire glow
+  and starting-point chips that write a prompt into the composer.
+- **Motion where it helps.** New messages rise in, a new thread's first message lifts out of
+  the home composer while the greeting and glow fade, sidebar rows settle in, and the
+  conversation fades back in when you leave Review. Animations play once, only on transform and
+  opacity, and stand down under reduced motion.
 
 ## Staying close to T3 Code
 

@@ -1,4 +1,5 @@
 import type { DraftId } from "~/composerDraftStore";
+import { HeroGreeting } from "../sapphire/HeroGreeting";
 import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDraftStore";
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
@@ -358,7 +359,12 @@ export function DraftHeroHeadline({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+    // Sapphire: a greeting above the headline; the attribute lets its stylesheet animate the hero.
+    <div
+      data-sapphire-hero-headline
+      className="mx-auto flex w-full max-w-5xl flex-col items-center"
+    >
+      <HeroGreeting />
       {hasResolvedProject && !isScratchDraft ? (
         <DraftHeroProjectHeading projectName={activeProjectTitle ?? gt("Choose a project")}>
           {projectSelector}

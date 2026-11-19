@@ -1,6 +1,7 @@
 import { m } from "../i18n/messages";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { useGT, useMessages } from "gt-react";
+import { XIcon } from "lucide-react";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -175,6 +176,7 @@ import { FileMetadataThreadProvider } from "../hooks/FileMetadataThreadProvider"
 import { RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY } from "../rightPanelLayout";
 import { PopoverCreateHandle } from "./ui/popover";
 import {
+  type RightPanelSurface,
   selectActiveRightPanel,
   selectActiveRightPanelSurface,
   selectThreadPanelOpen,
@@ -182,7 +184,6 @@ import {
   useRightPanelStore,
 } from "../rightPanelStore";
 import { isPreviewSupportedInRuntime, useThreadPreviewState } from "../previewStateStore";
-import { previewRuntimeTabId } from "../browser/previewRuntimeTabId";
 import {
   ThreadPreviewMiniPlayer,
   useThreadPreviewCanvasSource,
@@ -311,7 +312,6 @@ import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
 import {
   PanelLayoutControls,
   type PanelLayoutControlsProps,
-  RightPanelMaximizeControl,
   ThreadPanelHeaderControl,
   WorkspaceTitlebarControls,
 } from "./chat/PanelLayoutControls";
@@ -382,7 +382,15 @@ import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 import { observeResize } from "~/lib/observeResize";
 import { ThreadVisitWatermark } from "./chat/ThreadVisitWatermark";
 import { ChatTerminalDrawers } from "./chat/ChatTerminalDrawers";
-import { ChatRightPanel } from "./chat/ChatRightPanel";
+import { ModeSwitch, type ThreadMode } from "./sapphire/ModeSwitch";
+import { QuickEditDialog } from "./sapphire/QuickEditDialog";
+import { ReviewWorkspace } from "./sapphire/ReviewWorkspace";
+import { SubmitReviewDialog } from "./sapphire/SubmitReviewDialog";
+import {
+  manualEditNote,
+  reviewSubmissionMessage,
+  type ReviewVerdict,
+} from "../sapphire/reviewSubmission";
 import { useDraftEnvironmentRouting } from "./chat/useDraftEnvironmentRouting";
 import { branchMismatchBannerItem, extensionStatusBannerItem } from "./chat/ThreadActivityBanners";
 import { ThreadNow } from "./chat/ThreadNow";
@@ -646,6 +654,14 @@ export default function ChatView(props: ChatViewProps) {
     const draft = store.getComposerDraft(composerDraftTarget);
     return draft ? composerDraftHasUserContent({ ...draft, prompt: "" }) : false;
   });
+  // Sapphire: Review mode's composer dock stays open while the composer holds anything.
+  const composerHasContent = useComposerDraftStore((store) => {
+    const draft = store.getComposerDraft(composerDraftTarget);
+    return draft ? composerDraftHasUserContent(draft) : false;
+  });
+  const pendingReviewCommentCount = useComposerDraftStore(
+    (store) => store.getComposerDraft(composerDraftTarget)?.reviewComments.length ?? 0,
+  );
   const setComposerDraftPrompt = useComposerDraftStore((store) => store.setPrompt);
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
   const composerImagesRef = useRef<ComposerImageAttachment[]>([]);
@@ -1093,10 +1109,6 @@ export default function ChatView(props: ChatViewProps) {
     selectActiveRightPanelSurface(state.byThreadKey, activeThreadRef),
   );
   const activePreviewState = useThreadPreviewState(activeThreadRef);
-  const activePreviewServerEpoch = activePreviewState.serverEpoch;
-  const resolvePreviewRuntimeTabId = activeThreadRef
-    ? (tabId: string) => previewRuntimeTabId(activeThreadRef, activePreviewServerEpoch, tabId)
-    : undefined;
   const activePreviewMiniPlayer = usePreviewMiniPlayerStore((state) =>
     selectThreadPreviewMiniPlayer(state.byThreadKey, activeThreadRef),
   );
@@ -1121,21 +1133,20 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadKey,
     panelAnimationDurationMs,
   );
-  const rightPanelPresent = rightPanelPresence.present;
-  const rightPanelControlsInPanel =
-    shouldUsePlanSidebarSheet && rightPanelPresent && rightPanelOpen;
-  const rightPanelControlsAtRoot = rightPanelPresent && !shouldUsePlanSidebarSheet;
+  // Sapphire: an open right panel means the thread is in Review mode. Nothing renders beside the
+  // chat any more; Review replaces it with full-width panes, so the panel's controls are gone.
+  const reviewMode = rightPanelOpen && activeThreadRef !== null && !embedded;
+  const rightPanelControlsInPanel = false;
+  const rightPanelControlsAtRoot = false;
   const renderedRightPanelSurface = rightPanelPresence.value?.activeSurface ?? null;
-  const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
   const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
     activePreviewMiniPlayer?.source ?? null,
     renderedRightPanelSurface,
   );
   const canMaximizeRightPanel = rightPanelOpen;
   // An embedded side chat has no panel; a stale maximized flag would hide its own column.
-  const rightPanelMaximized =
-    !embedded && canMaximizeRightPanel && rightPanelState.maximized === true;
-  const inlineRightPanelOwnsTitleBar = rightPanelOpen && !shouldUsePlanSidebarSheet;
+  const rightPanelMaximized = false;
+  const inlineRightPanelOwnsTitleBar = false;
   const [threadPanelPopoverHandle] = useState(PopoverCreateHandle);
   const [chatCanvasStore] = useState(createChatCanvasStore);
 
@@ -1188,7 +1199,10 @@ export default function ChatView(props: ChatViewProps) {
   const pendingFileSurfaceIds = activeProjectKey
     ? (pendingFileSurfaceIdsByProject.get(activeProjectKey) ?? EMPTY_PENDING_FILE_SURFACE_IDS)
     : EMPTY_PENDING_FILE_SURFACE_IDS;
+  // Sapphire: files the user changed by hand in the quick-edit popup, told to the agent on close.
+  const handEditedPathsRef = useRef(new Set<string>());
   const handleFilePendingChange = (relativePath: string, pending: boolean) => {
+    if (pending) handEditedPathsRef.current.add(relativePath);
     if (!activeProjectKey) return;
     setPendingFileSurfaceIdsByProject((currentByProject) => {
       const current = currentByProject.get(activeProjectKey) ?? EMPTY_PENDING_FILE_SURFACE_IDS;
@@ -2072,12 +2086,7 @@ export default function ChatView(props: ChatViewProps) {
       useRightPanelStore.getState().setMaximized(routeThreadRef, true);
     }
   }, [canMaximizeRightPanel, routeThreadRef]);
-  const {
-    closeSurface: closeRightPanelSurface,
-    closeOtherSurfaces: closeOtherRightPanelSurfacesStable,
-    closeSurfacesToRight: closeRightPanelSurfacesToRightStable,
-    closeAllSurfaces: closeAllRightPanelSurfacesStable,
-  } = useRightPanelSurfaceClose({
+  const { closeSurface: closeRightPanelSurface } = useRightPanelSurfaceClose({
     threadRef: activeThreadRef,
     terminalLabelsById: activeTerminalLabelsById,
   });
@@ -2406,16 +2415,8 @@ export default function ChatView(props: ChatViewProps) {
     : null;
   const {
     activateRightPanelSurfaceStable,
-    addDeviceSurfaceStable,
-    addDiffSurfaceStable,
-    addFilesSurfaceStable,
-    addPullRequestSurfaceStable,
     addPullRequestsSurfaceStable,
-    closePreviewPanelStable,
-    copyRightPanelFilePathStable,
     createBrowserSurface,
-    createBrowserSurfaceStable,
-    moveRightPanelSurfaceStable,
     onOpenToolDiffStable,
     onOpenTurnDiffStable,
     openChangesFromThreadPanelStable,
@@ -2450,7 +2451,6 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     closeRightPanelSurface,
   });
-  const pullRequestSurfaceAvailable = supportsPullRequests && pullRequestPanelTarget !== null;
   const {
     acknowledgeActiveThreadWoke,
     activeBranchMismatchKey,
@@ -2887,7 +2887,6 @@ export default function ChatView(props: ChatViewProps) {
                   )
                 ? gt("Available once the thread's worktree is set up.")
                 : null;
-  const openSideChatStable = useStableCallback(() => void sideChat.open());
   const sendSideChatStable = useStableCallback(sideChat.open);
   const { onConfirmRevertStable, onForkFromRunStable, onRevertTimelineTurnStable } =
     useTimelineRewind({
@@ -3048,6 +3047,14 @@ export default function ChatView(props: ChatViewProps) {
   };
   const onWorktreeSetupWorkLocallyStable = useStableCallback(onWorktreeSetupWorkLocally);
   const onComposerSendStable = useStableCallback(onSend);
+  // Sapphire: sending from Review mode's dock returns to Chat, where the reply appears.
+  const onComposerSendFromAnyModeStable = useStableCallback(
+    (...args: Parameters<typeof onSend>) => {
+      const result = onSend(...args);
+      if (reviewMode && activeThreadRef) useRightPanelStore.getState().close(activeThreadRef);
+      return result;
+    },
+  );
   const sendPreviewAnnotation = (
     annotation: PreviewAnnotationPayload,
     image: ComposerImageAttachment | null,
@@ -3263,6 +3270,90 @@ export default function ChatView(props: ChatViewProps) {
     (folders: Parameters<ChatComposerHandle["addDroppedFolders"]>[0]) =>
       composerRef.current?.addDroppedFolders(folders),
   );
+  // Sapphire: Review mode state. The composer docks at the bottom of Review and slides up on
+  // hover; once it holds anything it stays up until dismissed.
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
+  const [dockHovered, setDockHovered] = useState(false);
+  const [dockFocused, setDockFocused] = useState(false);
+  const [dockDismissed, setDockDismissed] = useState(false);
+  const dockShown =
+    reviewMode && !dockDismissed && (dockHovered || dockFocused || composerHasContent);
+  // While the agent works, Review keeps showing the diff as it was when the work started, so
+  // nothing shifts under the reader. The agent finishing, or Refresh, shows the latest.
+  const agentWorking = phase === "running";
+  const [frozenMutation, setFrozenMutation] = useState<{
+    readonly threadKey: string | null;
+    readonly id: string | null;
+  } | null>(null);
+  if (frozenMutation !== null && (!agentWorking || frozenMutation.threadKey !== activeThreadKey)) {
+    setFrozenMutation(null);
+  } else if (frozenMutation === null && reviewMode && agentWorking) {
+    setFrozenMutation({ threadKey: activeThreadKey, id: workspaceMutationId });
+  }
+  const reviewMutationId = frozenMutation === null ? workspaceMutationId : frozenMutation.id;
+  const snapshotStale = frozenMutation !== null && frozenMutation.id !== workspaceMutationId;
+  const refreshReviewSnapshot = () =>
+    setFrozenMutation(
+      agentWorking ? { threadKey: activeThreadKey, id: workspaceMutationId } : null,
+    );
+  const setThreadMode = (mode: ThreadMode) => {
+    if (!activeThreadRef) return;
+    if (mode === "review") useRightPanelStore.getState().show(activeThreadRef);
+    else useRightPanelStore.getState().close(activeThreadRef);
+  };
+  const terminalOpenRef = useRef<{ key: string | null; open: boolean }>({
+    key: activeThreadKey,
+    open: Boolean(terminalUiState.terminalOpen),
+  });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Sapphire: the terminal lives in Review mode, so opening it from Chat (a shortcut, a project script) switches the thread there; revisiting a thread whose terminal was left open does not
+  useEffect(() => {
+    const open = Boolean(terminalUiState.terminalOpen);
+    const previous = terminalOpenRef.current;
+    terminalOpenRef.current = { key: activeThreadKey, open };
+    if (previous.key !== activeThreadKey || previous.open || !open) return;
+    if (!reviewMode && activeThreadRef && !embedded) {
+      useRightPanelStore.getState().show(activeThreadRef);
+    }
+  }, [activeThreadKey, activeThreadRef, embedded, reviewMode, terminalUiState.terminalOpen]);
+  const submitReview = (verdict: ReviewVerdict, note: string) => {
+    setSubmitReviewOpen(false);
+    const text = reviewSubmissionMessage({
+      verdict,
+      note,
+      commentCount: pendingReviewCommentCount,
+    });
+    composerRef.current?.insertTextAtEnd(text, { ensureLeadingBoundary: true });
+    if (activeThreadRef) useRightPanelStore.getState().close(activeThreadRef);
+    window.requestAnimationFrame(() => void onComposerSendStable());
+  };
+  const closeQuickEdit = (surface: RightPanelSurface) => {
+    closeRightPanelSurfaceStable(surface);
+    setQuickEditBaseline({ threadKey: activeThreadKey, key: null });
+    if (surface.kind !== "file" || !handEditedPathsRef.current.has(surface.relativePath)) return;
+    handEditedPathsRef.current.delete(surface.relativePath);
+    composerRef.current?.insertTextAtEnd(manualEditNote([surface.relativePath]), {
+      ensureLeadingBoundary: true,
+    });
+  };
+  const baselineFileSurface = rightPanelState.surfaces.find(
+    (surface) => surface.id === rightPanelState.activeSurfaceId && surface.kind === "file",
+  );
+  const [quickEditBaseline, setQuickEditBaseline] = useState(() => ({
+    threadKey: activeThreadKey,
+    key:
+      baselineFileSurface?.kind === "file"
+        ? `${baselineFileSurface.id}#${baselineFileSurface.revealRequestId ?? 0}`
+        : null,
+  }));
+  if (quickEditBaseline.threadKey !== activeThreadKey) {
+    setQuickEditBaseline({
+      threadKey: activeThreadKey,
+      key:
+        baselineFileSurface?.kind === "file"
+          ? `${baselineFileSurface.id}#${baselineFileSurface.revealRequestId ?? 0}`
+          : null,
+    });
+  }
   // Above the early return, where React Compiler can cache it for the side chat pane.
   const sideChatParentPanel = {
     openToolDiff: onOpenToolDiffStable,
@@ -3273,59 +3364,76 @@ export default function ChatView(props: ChatViewProps) {
     return embedded ? null : <NoActiveThreadState />;
   }
 
-  const rightPanelContent = activeThreadRef ? (
-    <RightPanelSurfaceContent
-      surface={renderedRightPanelSurface}
-      activeSurfaceId={activeRightPanelSurface?.id ?? null}
-      threadRef={activeThreadRef}
-      environmentId={activeThread.environmentId}
-      visible={rightPanelOpen}
-      composerDraftTarget={composerDraftTarget}
-      keybindings={keybindings}
-      configuredPreviewUrls={configuredPreviewUrls}
-      workspaceMutationId={workspaceMutationId}
-      getShortcutContext={getShortcutContextStable}
-      onSendAnnotation={sendPreviewAnnotationStable}
-      onCloseSurface={closeRightPanelSurface}
-      sideChatParentPanel={sideChatParentPanel}
-      terminal={{
-        launchContext: activeTerminalLaunchContext ?? null,
-        keybindings,
-        onAddTerminalContext: addTerminalContextToDraftStable,
-        onSplitTerminal: splitPanelTerminalStable,
-        onSplitTerminalVertical: splitPanelTerminalVerticalStable,
-        onNewTerminal: addTerminalSurfaceStable,
-        onActiveTerminalChange: activatePanelTerminalStable,
-        onCloseTerminal: closePanelTerminalStable,
-        splitShortcutLabel: splitTerminalShortcutLabel ?? undefined,
-        splitVerticalShortcutLabel: splitTerminalVerticalShortcutLabel ?? undefined,
-        newShortcutLabel: newTerminalShortcutLabel ?? undefined,
-        closeShortcutLabel: closeTerminalShortcutLabel ?? undefined,
-      }}
-      pullRequest={{
-        capabilityKnown: pullRequestsCapabilityKnown,
-        supported: supportsPullRequests,
-        projectId: activeThread.projectId,
-        pullRequests: visiblePullRequests,
-        linkedPullRequest: linkedThreadPullRequest,
-        branchPullRequest: activeThreadShell?.branchPullRequest ?? activeThread.branchPullRequest,
-        onBack:
-          pullRequestsSurfaceAvailable && visiblePullRequestCount > 1
-            ? addPullRequestsSurfaceStable
-            : undefined,
-      }}
-      issuesSupported={serverConfig?.environment.capabilities.issues === true}
-      files={{
-        projectId: activeProject?.id,
-        projectName: activeProject?.title ?? null,
-        workspaceRoot: activeWorkspaceRoot,
-        availableEditors,
-        pendingSurfaceIds: pendingFileSurfaceIds,
-        onOpenFile: openFileSurfaceStable,
-        onPendingChange: handleFilePendingChangeStable,
-      }}
-    />
-  ) : null;
+  const renderReviewSurface = (surface: RightPanelSurface, visible: boolean) =>
+    activeThreadRef ? (
+      <RightPanelSurfaceContent
+        surface={surface}
+        activeSurfaceId={surface.id}
+        threadRef={activeThreadRef}
+        environmentId={activeThread.environmentId}
+        visible={visible}
+        composerDraftTarget={composerDraftTarget}
+        keybindings={keybindings}
+        configuredPreviewUrls={configuredPreviewUrls}
+        workspaceMutationId={reviewMutationId}
+        getShortcutContext={getShortcutContextStable}
+        onSendAnnotation={sendPreviewAnnotationStable}
+        onCloseSurface={closeRightPanelSurface}
+        sideChatParentPanel={sideChatParentPanel}
+        terminal={{
+          launchContext: activeTerminalLaunchContext ?? null,
+          keybindings,
+          onAddTerminalContext: addTerminalContextToDraftStable,
+          onSplitTerminal: splitPanelTerminalStable,
+          onSplitTerminalVertical: splitPanelTerminalVerticalStable,
+          onNewTerminal: addTerminalSurfaceStable,
+          onActiveTerminalChange: activatePanelTerminalStable,
+          onCloseTerminal: closePanelTerminalStable,
+          splitShortcutLabel: splitTerminalShortcutLabel ?? undefined,
+          splitVerticalShortcutLabel: splitTerminalVerticalShortcutLabel ?? undefined,
+          newShortcutLabel: newTerminalShortcutLabel ?? undefined,
+          closeShortcutLabel: closeTerminalShortcutLabel ?? undefined,
+        }}
+        pullRequest={{
+          capabilityKnown: pullRequestsCapabilityKnown,
+          supported: supportsPullRequests,
+          projectId: activeThread.projectId,
+          pullRequests: visiblePullRequests,
+          linkedPullRequest: linkedThreadPullRequest,
+          branchPullRequest: activeThreadShell?.branchPullRequest ?? activeThread.branchPullRequest,
+          onBack:
+            pullRequestsSurfaceAvailable && visiblePullRequestCount > 1
+              ? addPullRequestsSurfaceStable
+              : undefined,
+        }}
+        issuesSupported={serverConfig?.environment.capabilities.issues === true}
+        files={{
+          projectId: activeProject?.id,
+          projectName: activeProject?.title ?? null,
+          workspaceRoot: activeWorkspaceRoot,
+          availableEditors,
+          pendingSurfaceIds: pendingFileSurfaceIds,
+          onOpenFile: openFileSurfaceStable,
+          onPendingChange: handleFilePendingChangeStable,
+        }}
+      />
+    ) : null;
+  const activeSurfaceRaw =
+    rightPanelState.surfaces.find((surface) => surface.id === rightPanelState.activeSurfaceId) ??
+    null;
+  // The popup opens for a file opened now, not for one left active when the thread was last
+  // seen (a reload, a thread switch), so it never greets the user on arrival.
+  const quickEditKey =
+    activeSurfaceRaw?.kind === "file"
+      ? `${activeSurfaceRaw.id}#${activeSurfaceRaw.revealRequestId ?? 0}`
+      : null;
+  const quickEditSurface =
+    reviewMode &&
+    activeSurfaceRaw?.kind === "file" &&
+    quickEditBaseline.threadKey === activeThreadKey &&
+    quickEditKey !== quickEditBaseline.key
+      ? activeSurfaceRaw
+      : null;
   const panelToggleControlProps = {
     terminalAvailable: activeProject !== null,
     terminalOpen: terminalUiState.terminalOpen,
@@ -3345,12 +3453,14 @@ export default function ChatView(props: ChatViewProps) {
     <PanelLayoutControls
       {...panelToggleControlProps}
       showThreadPanelControl={!inlineRightPanelOwnsTitleBar}
+      showTerminalControl={false}
+      showRightPanelControl={false}
     />
   );
   const threadPanelHeaderControl = <ThreadPanelHeaderControl {...panelToggleControlProps} />;
   const panelLayoutControls = (
     <WorkspaceTitlebarControls
-      showMaximizeControl={!shouldUsePlanSidebarSheet}
+      showMaximizeControl={false}
       rightPanelOpen={rightPanelOpen}
       animationsActive={panelAnimationsActive}
       maximized={rightPanelMaximized}
@@ -3382,8 +3492,11 @@ export default function ChatView(props: ChatViewProps) {
         className={cn(
           "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
           rightPanelMaximized ? "w-0 flex-none" : "flex-1",
+          reviewMode && "pointer-events-none absolute inset-0 z-30",
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
+        data-sapphire-review={reviewMode ? "true" : undefined}
+        data-dock-open={dockShown ? "true" : undefined}
         data-chat-column
         inert={rightPanelMaximized}
         onMouseUp={preventMiddleClickPasteOutsideEditable}
@@ -3429,6 +3542,19 @@ export default function ChatView(props: ChatViewProps) {
                 : {})}
               {...(threadFindEnabled ? { onFindInThread: openThreadFindStable } : {})}
             />
+            {activeThreadRef ? (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-[var(--workspace-topbar-height)] items-center justify-center">
+                <div className="pointer-events-auto">
+                  <ModeSwitch
+                    mode={reviewMode ? "review" : "chat"}
+                    reviewAvailable={activeProject !== null}
+                    unseen={rightPanelState.unseen === true}
+                    shortcutLabel={shortcutLabelForCommand(keybindings, "rightPanel.toggle")}
+                    onChange={setThreadMode}
+                  />
+                </div>
+              </div>
+            ) : null}
           </header>
         )}
 
@@ -3472,6 +3598,7 @@ export default function ChatView(props: ChatViewProps) {
             />
             <div
               {...conversationArea}
+              data-sapphire-conversation
               className="relative flex min-h-0 flex-1 flex-col bg-background"
             >
               <WorkspaceMutationIdContext value={workspaceMutationId}>
@@ -3601,6 +3728,27 @@ export default function ChatView(props: ChatViewProps) {
                 attachFollowComposerOverlay(overlay);
               }}
               inert={isRevertingCheckpoint}
+              onMouseEnter={
+                reviewMode
+                  ? () => {
+                      setDockHovered(true);
+                      setDockDismissed(false);
+                    }
+                  : undefined
+              }
+              onMouseLeave={reviewMode ? () => setDockHovered(false) : undefined}
+              // Opening a thread focuses the composer on its own; only a click into the dock
+              // (or typing, which fills it) holds it open.
+              onPointerDownCapture={reviewMode ? () => setDockFocused(true) : undefined}
+              onBlurCapture={
+                reviewMode
+                  ? (event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                        setDockFocused(false);
+                      }
+                    }
+                  : undefined
+              }
               data-chat-composer-overlay="true"
               className={
                 isDraftHeroState
@@ -3613,6 +3761,23 @@ export default function ChatView(props: ChatViewProps) {
                   data-chat-composer-stack="true"
                   className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
                 >
+                  {reviewMode ? (
+                    <button
+                      type="button"
+                      className="sapphire-dock-close"
+                      aria-label={gt("Hide composer")}
+                      onClick={() => {
+                        setDockDismissed(true);
+                        setDockHovered(false);
+                        setDockFocused(false);
+                        if (document.activeElement instanceof HTMLElement) {
+                          document.activeElement.blur();
+                        }
+                      }}
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  ) : null}
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full">
                       <div
@@ -3797,7 +3962,7 @@ export default function ChatView(props: ChatViewProps) {
                                 onPageScrollKeyUp={onComposerPageScrollKeyUpStable}
                                 onPageScrollRelease={onComposerPageScrollReleaseStable}
                                 onCompactContext={onComposerCompactContextStable}
-                                onSend={onComposerSendStable}
+                                onSend={onComposerSendFromAnyModeStable}
                                 onResume={onComposerResumeStable}
                                 onInterrupt={onInterruptStable}
                                 onSelectActivePendingUserInputOption={
@@ -3917,7 +4082,7 @@ export default function ChatView(props: ChatViewProps) {
             {canOperatePreview && activeThreadRef && activeEnvironmentServerBrowser && !embedded ? (
               <PreviewSessionSync threadRef={activeThreadRef} />
             ) : null}
-            {activeThreadRef && shownPreviewMiniPlayer && !embedded ? (
+            {activeThreadRef && shownPreviewMiniPlayer && !embedded && !reviewMode ? (
               <ThreadPreviewMiniPlayer
                 key={`${activeThreadKey}:${previewMiniPlayerSourceKey(shownPreviewMiniPlayer.source)}`}
                 threadRef={activeThreadRef}
@@ -4017,86 +4182,66 @@ export default function ChatView(props: ChatViewProps) {
             )}
           </ThreadFindCanvas>
         </div>
-
-        {embedded ? null : (
-          <ChatTerminalDrawers
-            activeThreadKey={activeThreadKey}
-            activeTerminalOpen={Boolean(terminalUiState.terminalOpen)}
-            composerHeight={composerReservedHeight}
-            launchContext={activeTerminalLaunchContext ?? null}
-            splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
-            splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
-            newShortcutLabel={newTerminalShortcutLabel ?? undefined}
-            closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
-            keybindings={keybindings}
-            onAddTerminalContext={addTerminalContextToDraftStable}
-          />
-        )}
       </div>
 
-      {rightPanelPresent && activeThreadRef && !embedded ? (
-        <ChatRightPanel
-          sheet={shouldUsePlanSidebarSheet}
-          workspaceLayoutElement={workspaceLayoutElement}
-          widthStorageKey={`t3code:preview-panel-width:${activeThreadKey}`}
-          sheetAnimationDurationMs={panelAnimationsActive ? panelAnimationDurationMs : 0}
-          onCloseSheet={closePreviewPanelStable}
-          open={rightPanelOpen}
-          keybindings={keybindings}
-          getShortcutContext={getShortcutContextStable}
-          maximized={rightPanelMaximized}
-          layoutControls={
-            rightPanelOpen ? (
-              <div className="mr-px flex items-center gap-1">
-                <RightPanelMaximizeControl
-                  maximized={rightPanelMaximized}
-                  onToggle={toggleRightPanelMaximizedStable}
-                />
-                {panelToggleControls}
-              </div>
-            ) : null
-          }
-          surfaces={renderedRightPanelSurfaces}
+      {reviewMode && activeThreadRef ? (
+        <ReviewWorkspace
           environmentId={activeThreadRef.environmentId}
-          activeSurfaceId={renderedRightPanelSurface?.id ?? null}
-          pendingSurfaceIds={pendingFileSurfaceIds}
+          layoutKey={activeProjectKey ?? activeThreadKey ?? "default"}
+          surfaces={rightPanelState.surfaces}
+          activeSurfaceId={rightPanelState.activeSurfaceId}
           previewSessions={activePreviewState.sessions}
-          desktopByTabId={activePreviewState.desktopByTabId}
-          previewRuntimeTabId={resolvePreviewRuntimeTabId}
           terminalLabelsById={activeTerminalLabelsById}
-          onActivate={activateRightPanelSurfaceStable}
-          onCloseSurface={closeRightPanelSurfaceStable}
-          onRenameDevice={(surfaceId, title) => {
-            if (activeThreadRef)
-              useRightPanelStore.getState().renameDevice(activeThreadRef, surfaceId, title);
-          }}
-          onCloseOtherSurfaces={closeOtherRightPanelSurfacesStable}
-          onCloseSurfacesToRight={closeRightPanelSurfacesToRightStable}
-          onCloseAllSurfaces={closeAllRightPanelSurfacesStable}
-          onMoveSurface={moveRightPanelSurfaceStable}
-          onCopyFilePath={copyRightPanelFilePathStable}
-          onAddBrowser={() => createBrowserSurface()}
-          onAddBrowserInProfile={createBrowserSurfaceStable}
-          onAddTerminal={addTerminalSurfaceStable}
-          onAddDiff={addDiffSurfaceStable}
-          onAddFiles={addFilesSurfaceStable}
-          onAddPullRequest={addPullRequestSurfaceStable}
-          onAddPullRequests={addPullRequestsSurfaceStable}
-          onAddDevice={addDeviceSurfaceStable}
-          onAddSideChat={sideChatsOffered ? openSideChatStable : undefined}
-          browserAvailable={canOperatePreview && browserAvailable}
-          terminalAvailable={activeProject !== null && canOperateTerminal}
           diffAvailable={isServerThread && isGitRepo}
-          filesAvailable={activeProject !== null}
-          pullRequestAvailable={pullRequestSurfaceAvailable}
-          pullRequestsAvailable={linkedItemsSurfaceAvailable}
-          deviceAvailable={activeThreadRef !== null}
-          sideChatAvailable={sideChat.available}
-          sideChatDisabledReason={sideChatDisabledReason}
-        >
-          {rightPanelContent}
-        </ChatRightPanel>
+          browserAvailable={canOperatePreview && browserAvailable}
+          agentWorking={agentWorking}
+          snapshotStale={snapshotStale}
+          pendingReviewCommentCount={pendingReviewCommentCount}
+          canSubmitReview={isServerThread}
+          terminal={{
+            available: activeProject !== null && canOperateTerminal,
+            open: Boolean(terminalUiState.terminalOpen),
+            runningCount: runningTerminalIds.length,
+            shortcutLabel: shortcutLabelForCommand(keybindings, "terminal.toggle"),
+            onToggle: toggleTerminalVisibilityStable,
+            drawer: (
+              <ChatTerminalDrawers
+                activeThreadKey={activeThreadKey}
+                activeTerminalOpen={Boolean(terminalUiState.terminalOpen)}
+                composerHeight={0}
+                launchContext={activeTerminalLaunchContext ?? null}
+                splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
+                splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
+                newShortcutLabel={newTerminalShortcutLabel ?? undefined}
+                closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
+                keybindings={keybindings}
+                onAddTerminalContext={addTerminalContextToDraftStable}
+              />
+            ),
+          }}
+          onRefreshSnapshot={refreshReviewSnapshot}
+          onSubmitReview={() => setSubmitReviewOpen(true)}
+          onAddBrowser={() => createBrowserSurface()}
+          onActivateSurface={activateRightPanelSurfaceStable}
+          onCloseSurface={closeRightPanelSurfaceStable}
+          renderSurface={renderReviewSurface}
+        />
       ) : null}
+      {embedded ? null : (
+        <>
+          <QuickEditDialog
+            surface={quickEditSurface}
+            onClose={closeQuickEdit}
+            renderSurface={renderReviewSurface}
+          />
+          <SubmitReviewDialog
+            open={submitReviewOpen}
+            pendingCommentCount={pendingReviewCommentCount}
+            onOpenChange={setSubmitReviewOpen}
+            onSubmit={submitReview}
+          />
+        </>
+      )}
 
       <RevertConfirmHost
         threadKey={routeThreadKey}

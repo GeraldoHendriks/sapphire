@@ -126,6 +126,8 @@ export interface ThreadRightPanelState {
   dismissedDeviceSurfaceIds?: string[];
   maximized?: true;
   proactiveDiffTurnId?: RunId;
+  /** Sapphire: something opened for this thread while it was in Chat mode and has not been seen. */
+  unseen?: true;
 }
 
 export interface ThreadPanelVisibility {
@@ -204,6 +206,8 @@ interface RightPanelStoreState {
   activateSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
   /** Agent-driven activation. Not a user action, so it does not move keyboard focus. */
   revealSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
+  /** Sapphire: an agent's forced reveal of a browser tab the panel does not have yet. */
+  revealBrowser: (ref: ScopedThreadRef, tabId: string) => void;
   closeSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeOtherSurfaces: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeSurfacesToRight: (ref: ScopedThreadRef, surfaceId: string) => void;
@@ -238,8 +242,9 @@ const EMPTY_THREAD_STATE: ThreadRightPanelState = {
   surfaces: [],
 };
 
+// Sapphire has no side panes: the thread details card opens as a popover unless pinned inline.
 const DEFAULT_THREAD_PANEL_VISIBILITY: ThreadPanelVisibility = {
-  inlineOpen: true,
+  inlineOpen: false,
   popoverOpen: false,
 };
 
@@ -414,7 +419,7 @@ const updateThreadPanelVisibilityMap = (
 ): Record<string, ThreadPanelVisibility> => {
   const current = byThreadKey[threadKey] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
   const next = updater(current);
-  if (next.inlineOpen && !next.popoverOpen) {
+  if (!next.inlineOpen && !next.popoverOpen) {
     if (!(threadKey in byThreadKey)) return byThreadKey;
     const { [threadKey]: _removed, ...rest } = byThreadKey;
     return rest;
@@ -434,7 +439,13 @@ const updateThread = (
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): RightPanelStoreData => {
   const current = state.byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, updater);
+  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, (thread) => {
+    const updated = updater(thread);
+    // Opening Review mode shows whatever was waiting there.
+    if (!updated.isOpen || updated.unseen === undefined) return updated;
+    const { unseen: _seen, ...rest } = updated;
+    return rest;
+  });
   const next = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
   let threadPanelVisibilityByThreadKey = state.threadPanelVisibilityByThreadKey;
 
@@ -448,22 +459,37 @@ const updateThread = (
     threadPanelVisibilityByThreadKey = updateThreadPanelVisibilityMap(
       threadPanelVisibilityByThreadKey,
       threadKey,
-      (visibility) =>
-        visibility.popoverOpen && !visibility.inlineOpen
-          ? { ...visibility, inlineOpen: true }
-          : visibility,
+      (visibility) => (visibility.popoverOpen ? { ...visibility, popoverOpen: false } : visibility),
     );
   }
 
   return { byThreadKey, threadPanelVisibilityByThreadKey };
 };
 
+/**
+ * Sapphire: an automatic update (an agent opening a browser or device, the proactive diff after a
+ * turn) never moves a thread from Chat into Review mode. It adds its surface and marks the thread
+ * `unseen`, so the mode switch can show that something is waiting.
+ */
+function applyAutomaticUpdate(
+  current: ThreadRightPanelState,
+  updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
+): ThreadRightPanelState {
+  const next = updater(current);
+  if (next === current || current.isOpen) return next;
+  const added = next.surfaces.some(
+    (surface) => !current.surfaces.some((entry) => entry.id === surface.id),
+  );
+  if (!added) return next.isOpen ? { ...next, isOpen: false } : next;
+  return { ...next, isOpen: false, unseen: true };
+}
+
 const automaticUpdate = (
   state: RightPanelStoreState,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): Partial<RightPanelStoreState> => ({
-  ...updateThread(state, threadKey, updater),
+  ...updateThread(state, threadKey, (current) => applyAutomaticUpdate(current, updater)),
 });
 
 // A side chat pane has no panel of its own, so its panel actions open in its parent's panel.
@@ -708,8 +734,8 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
             persistedState.threadPanelVisibilityByThreadKey as Record<string, unknown>,
           ).flatMap(([threadKey, value]) => {
             if (!value || typeof value !== "object" || !("inlineOpen" in value)) return [];
-            return value.inlineOpen === false
-              ? [[threadKey, { inlineOpen: false, popoverOpen: false }]]
+            return value.inlineOpen === true
+              ? [[threadKey, { inlineOpen: true, popoverOpen: false }]]
               : [];
           }),
         )
@@ -1069,9 +1095,23 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => activated(current, surfaceId)),
         ),
+      // A forced reveal (an agent showing the user something) is the one automatic change that
+      // switches the thread to Review mode, so it skips `automaticUpdate`.
       revealSurface: (ref, surfaceId) =>
         set((state) =>
-          automaticUpdate(state, scopedThreadKey(ref), (current) => activated(current, surfaceId)),
+          updateThread(state, scopedThreadKey(ref), (current) => activated(current, surfaceId)),
+        ),
+      revealBrowser: (ref, tabId) =>
+        set((state) =>
+          updateThread(state, scopedThreadKey(ref), (current) =>
+            upsertSurface(
+              {
+                ...current,
+                surfaces: current.surfaces.filter((entry) => entry.id !== "browser:new"),
+              },
+              browserSurface(tabId),
+            ),
+          ),
         ),
       closeSurface: (ref, surfaceId) =>
         set((state) =>
@@ -1079,11 +1119,8 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             const index = current.surfaces.findIndex((surface) => surface.id === surfaceId);
             if (index < 0) return current;
             const surfaces = current.surfaces.filter((surface) => surface.id !== surfaceId);
-            const next = {
-              ...current,
-              isOpen: surfaces.length > 0 && current.isOpen,
-              surfaces,
-            };
+            // Sapphire: closing a tab never leaves Review mode; only the mode switch does.
+            const next = { ...current, surfaces };
             if (current.activeSurfaceId !== surfaceId) {
               return next;
             }
@@ -1310,7 +1347,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         threadPanelVisibilityByThreadKey: Object.fromEntries(
           Object.entries(state.threadPanelVisibilityByThreadKey).flatMap(
             ([threadKey, visibility]) =>
-              visibility.inlineOpen ? [] : [[threadKey, { inlineOpen: false, popoverOpen: false }]],
+              visibility.inlineOpen ? [[threadKey, { inlineOpen: true, popoverOpen: false }]] : [],
           ),
         ),
       }),

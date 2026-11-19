@@ -12,10 +12,6 @@ import {
   type ThreadIssueLink,
 } from "@t3tools/contracts";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
-import {
-  compileResolvedKeybindingsConfig,
-  mergeWithDefaultKeybindings,
-} from "@t3tools/shared/keybindings";
 import type * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import { expect, it, vi } from "vite-plus/test";
@@ -32,7 +28,7 @@ import stylesheet from "~/index.css?inline";
 import { environmentContextRecord } from "~/lib/composerContextRecords";
 import { startWorkspaceFocus } from "~/lib/workspaceFocus";
 import { usePromptStashStore } from "~/promptStashStore";
-import { useRightPanelStore } from "~/rightPanelStore";
+import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { getRouter } from "~/router";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { environmentThreadDetails } from "~/state/threads";
@@ -222,6 +218,8 @@ it("opens a linked Linear issue from an inactive thread's sidebar badge", async 
   expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${linked.id}`);
   await expect.element(page.getByRole("heading", { name: liveTitle })).toBeVisible();
   await act(() => useRightPanelStore.getState().close(scopeThreadRef(ENVIRONMENT_ID, linked.id)));
+  // Sapphire opens thread details as a popover rather than an inline side card.
+  await userEvent.click(page.getByRole("button", { name: "Toggle thread details panel" }));
   await expect
     .element(
       page.getByRole("region", { name: "Thread details" }).getByRole("link", {
@@ -704,17 +702,10 @@ it("a mounted thread view lets go of the thread structures it has replaced", asy
   expect(kept).toEqual([]);
 });
 
-it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel", async () => {
+it("the mode switch moves a thread between Chat and Review", async () => {
   await page.viewport(1280, 800);
   const thread = threadWithHistory("thread-panel-shortcut", 1);
-  using _environment = installFakeEnvironment([thread], {
-    keybindings: mergeWithDefaultKeybindings(
-      compileResolvedKeybindingsConfig([
-        { key: "ctrl+t", command: "rightPanel.new", when: "rightPanelOpen && !terminalFocus" },
-        { key: "ctrl+t", command: "rightPanel.toggle", when: "!rightPanelOpen" },
-      ]),
-    ),
-  });
+  using _environment = installFakeEnvironment([thread]);
   __setClientSettingsForTests({
     ...DEFAULT_CLIENT_SETTINGS,
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
@@ -727,15 +718,20 @@ it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel"
     // AppRoot brings its own router.
     router: false,
   });
-  const composer = page.getByTestId("composer-editor");
-  const toggle = page.getByRole("button", { name: "Toggle right panel", exact: true });
-  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
-  await toggle.click();
-  await page.getByRole("button", { name: /^Files/ }).click();
-  await composer.click();
-  await userEvent.keyboard("{Control>}t{/Control}");
-  await expect.element(page.getByRole("menuitem", { name: /Files/ })).toBeVisible();
-  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  const threadRef = scopeThreadRef(ENVIRONMENT_ID, thread.id);
+  const review = page.getByRole("tab", { name: "Review", exact: true });
+  const chat = page.getByRole("tab", { name: "Chat", exact: true });
+  await expect.element(review).toHaveAttribute("aria-selected", "false");
+  await userEvent.click(review);
+  await expect.element(review).toHaveAttribute("aria-selected", "true");
+  expect(
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, threadRef).isOpen,
+  ).toBe(true);
+  await userEvent.click(chat);
+  await expect.element(chat).toHaveAttribute("aria-selected", "true");
+  expect(
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, threadRef).isOpen,
+  ).toBe(false);
 });
 
 it("selecting a side-chat tab focuses that side chat's composer", async () => {
@@ -772,7 +768,7 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
   await userEvent.click(mainEditor);
   await userEvent.keyboard("main draft");
 
-  await userEvent.click(screen.getByRole("button", { name: otherSide.title, exact: true }));
+  await userEvent.click(screen.getByRole("tab", { name: otherSide.title, exact: true }));
   const otherEditor = screen.getByRole("textbox", {
     name: `Message ${otherSide.title}`,
     exact: true,
@@ -781,7 +777,7 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
   await userEvent.keyboard("other draft");
   await expect.element(otherEditor).toHaveTextContent("other draft");
 
-  await userEvent.click(screen.getByRole("button", { name: side.title, exact: true }));
+  await userEvent.click(screen.getByRole("tab", { name: side.title, exact: true }));
   await expect.element(sideEditor).toHaveFocus();
   await expect.element(mainEditor).toHaveTextContent("main draft");
 });
@@ -826,7 +822,7 @@ it("/side sends the draft's attachments and context, and keeps them when it does
     await expect.element(image).not.toBeInTheDocument();
   };
   // The tab opens once the start finished; until then `/side` refuses another side chat.
-  const sideChatTabs = page.getByRole("button", { name: "Side chat", exact: true });
+  const sideChatTabs = page.getByRole("tab", { name: "Side chat", exact: true });
   const sentMessage = async (fields: Record<string, unknown>, openTabs: number) => {
     await vi.waitFor(() =>
       expect(dispatchedCommands()).toContainEqual(

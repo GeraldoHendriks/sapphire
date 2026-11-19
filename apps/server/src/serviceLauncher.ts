@@ -164,6 +164,7 @@ async function serviceUnitFromEnvironment(
   if (unitName.endsWith(".xml")) {
     const localAppData = env.LOCALAPPDATA?.trim();
     if (!localAppData) return undefined;
+    // Sapphire: its own name, apart from an installed T3 Code.
     const path = NodePath.win32.join(localAppData, "sapphire", unitName);
     const taskName = serviceTaskName(env.USERDOMAIN ?? "", env.USERNAME ?? "");
     return { path, reload: () => registerServiceTask(path, taskName) };
@@ -755,6 +756,7 @@ async function terminateChild(
 }
 
 /** Task Scheduler names are machine-wide, so each Windows account runs its own task. */
+// Sapphire: its own name, apart from an installed T3 Code.
 export const serviceTaskName = (domain: string, userName: string) =>
   `sapphire-${domain}-${userName}`;
 

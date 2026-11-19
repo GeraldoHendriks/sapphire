@@ -227,6 +227,7 @@ const make = Effect.fn("desktop.environment.make")(function* (
     otlpProtocol: config.otlpProtocol,
     branding,
     displayName,
+    // Sapphire: its own name, apart from an installed T3 Code.
     appUserModelId: Option.getOrElse(config.appUserModelIdOverride, () =>
       isDevelopment ? "dev.sapphire.app.dev" : "dev.sapphire.app",
     ),

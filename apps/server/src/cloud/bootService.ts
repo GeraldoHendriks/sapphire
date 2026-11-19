@@ -307,6 +307,7 @@ const defaultSystemdUnitDir = (path: Path.Path, homeDir: string, xdgConfigHome: 
   );
 
 const scheduledTaskPath = (path: Path.Path, localAppData: string) =>
+  // Sapphire: its own name, apart from an installed T3 Code.
   path.join(localAppData, "sapphire", BOOT_SERVICE_TASK_FILE);
 
 const launchdPlistPath = (path: Path.Path, homeDir: string) =>

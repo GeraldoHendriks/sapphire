@@ -15,6 +15,7 @@ import { startNativeCaptureFeedback } from "./NativeCaptureFeedback.ts";
 export { isKdeCaptureSession } from "./linuxCaptureSession.ts";
 
 export const KDE_CAPTURE_EXECUTABLE = "t3-kde-snap-shot";
+// Sapphire: its own name, apart from an installed T3 Code.
 const DESKTOP_FILE = "dev.sapphire.Sapphire.KdeCapture.desktop";
 const MARKER = "X-Sapphire-Capture-Helper=true";
 const decodeCapabilities = Schema.decodeUnknownSync(
@@ -24,6 +25,7 @@ export type KdeCapturePaths = { readonly bundle: string; readonly dataHome: stri
 
 export function kdeCapturePaths(paths: KdeCapturePaths) {
   return {
+    // Sapphire: its own name, apart from an installed T3 Code.
     executable: NodePath.join(paths.dataHome, "sapphire", "kde-capture", KDE_CAPTURE_EXECUTABLE),
     desktop: NodePath.join(paths.dataHome, "applications", DESKTOP_FILE),
   };

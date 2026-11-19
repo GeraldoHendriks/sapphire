@@ -13,6 +13,7 @@ try {
       process.platform === "linux"
         ? process.env.XDG_CACHE_HOME || NodePath.join(NodeOS.homedir(), ".cache")
         : NodeOS.tmpdir();
+    // Sapphire: its own name, apart from an installed T3 Code.
     const directory = NodePath.join(cacheRoot, "sapphire", "compile-cache");
     const prepared =
       process.env.ELECTRON_RUN_AS_NODE === "1" &&

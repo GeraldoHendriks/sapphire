@@ -181,6 +181,7 @@ export const runSqliteState = Effect.fn("runSqliteState")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const baseDir = path.resolve(input.baseDir);
+  // Sapphire: its own name, apart from an installed T3 Code.
   const sharedHome = path.resolve(options.sharedHome ?? path.join(NodeOS.homedir(), ".sapphire"));
   const databasePath = path.join(baseDir, "userdata", "statev2.sqlite");
   const source = yield* resolveSqlSource(input.sql, input.file);

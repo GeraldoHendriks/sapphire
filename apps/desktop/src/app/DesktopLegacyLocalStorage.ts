@@ -21,7 +21,7 @@ export class DesktopLegacyLocalStorage extends Context.Service<
 >()("@t3tools/desktop/app/DesktopLegacyLocalStorage") {}
 
 const MARKER_FILE_NAME = "v1-local-storage-imported";
-// Sapphire has no V1 profile of its own and must not import an installed T3 Code's.
+// Sapphire: it has no V1 profile of its own and must not import an installed T3 Code's.
 const V1_PROFILE_NAMES: ReadonlyArray<string> = [];
 
 const make = Effect.gen(function* () {

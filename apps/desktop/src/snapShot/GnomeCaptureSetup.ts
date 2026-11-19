@@ -65,6 +65,7 @@ export async function installGnomeCaptureBundle({ bundle, dataHome }: SetupPaths
     }
     await NodeFSP.chmod(staged, 0o755);
     if (existing) {
+      // Sapphire: its own name, apart from an installed T3 Code.
       const backupParent = NodePath.join(dataHome, "sapphire", "extension-backups");
       await NodeFSP.mkdir(backupParent, { recursive: true });
       backup = NodePath.join(

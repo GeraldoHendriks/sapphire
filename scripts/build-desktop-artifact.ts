@@ -2871,6 +2871,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       },
       protocols: [
         {
+          // Sapphire: T3's scheme stays, because T3's hosted sign-in returns only to it.
           name: "Sapphire",
           schemes: ["t3code", "t3code-dev"],
         },
@@ -2924,6 +2925,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       maintainer: "T3 Tools <hello@t3.codes>",
       protocols: [
         {
+          // Sapphire: T3's scheme stays, because T3's hosted sign-in returns only to it.
           name: "Sapphire",
           schemes: ["t3code", "t3code-dev"],
         },
@@ -2931,6 +2933,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       desktop: {
         entry: {
           // Match Electron's WM_CLASS from setDesktopName so docks use this launcher.
+          // Sapphire: its own name, apart from an installed T3 Code.
           StartupWMClass: "dev.sapphire.Sapphire",
         },
       },

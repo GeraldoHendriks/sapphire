@@ -1,6 +1,9 @@
 export const CLIENT_NAMES = [
   "com.t3tools.T3Code.SnapShot",
   "com.t3tools.T3Code.Development.SnapShot",
+  // Sapphire: its own desktop names, so capture keeps working beside T3 Code.
+  "dev.sapphire.Sapphire.SnapShot",
+  "dev.sapphire.Sapphire.Development.SnapShot",
 ];
 
 export function isWaylandSession(meta) {

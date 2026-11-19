@@ -1,0 +1,49 @@
+# Sapphire's own CI. The upstream T3 Code workflows run on Blacksmith runners
+# that only exist for pingdotgg, so they are disabled in this repository's
+# Actions settings (the files stay untouched to keep upstream merges clean).
+# This workflow runs the fast checks on GitHub's hosted runners.
+name: Sapphire CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sapphire-ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+
+      - name: Format
+        run: vp fmt --check
+
+      - name: Lint
+        run: vp run lint
+
+      - name: Translations
+        run: vp run i18n:check
+
+      - name: Typecheck
+        run: vp run typecheck
+
+      - name: Sapphire unit tests
+        run: >-
+          vp test run
+          apps/web/src/sapphire
+          apps/web/src/rightPanelStore.test.ts
+          apps/web/src/components/preview/agentOpenedPreviews.test.ts

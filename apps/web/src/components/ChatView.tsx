@@ -385,6 +385,7 @@ import { ChatTerminalDrawers } from "./chat/ChatTerminalDrawers";
 import { ModeSwitch, type ThreadMode } from "./sapphire/ModeSwitch";
 import { QuickEditDialog } from "./sapphire/QuickEditDialog";
 import { HeroSuggestions } from "./sapphire/HeroSuggestions";
+import { openLaunchWindow } from "../sapphire/motion";
 import { ReviewWorkspace } from "./sapphire/ReviewWorkspace";
 import { SubmitReviewDialog } from "./sapphire/SubmitReviewDialog";
 import {
@@ -3048,18 +3049,11 @@ export default function ChatView(props: ChatViewProps) {
   };
   const onWorktreeSetupWorkLocallyStable = useStableCallback(onWorktreeSetupWorkLocally);
   const onComposerSendStable = useStableCallback(onSend);
-  // Sapphire: the first message of a new thread launches from the home composer. The window opens
-  // when the thread leaves the home screen, the moment its first message comes into view, and
-  // closes once that entrance has played.
-  const [heroLaunching, setHeroLaunching] = useState(false);
-  const [heroWasShown, setHeroWasShown] = useState(isDraftHeroState);
-  if (heroWasShown !== isDraftHeroState) {
-    setHeroWasShown(isDraftHeroState);
-    if (heroWasShown && !isDraftHeroState) setHeroLaunching(true);
-  }
   // Sapphire: sending from Review mode's dock returns to Chat, where the reply appears.
   const onComposerSendFromAnyModeStable = useStableCallback(
     (...args: Parameters<typeof onSend>) => {
+      // Sapphire: the first message of a new thread lifts out of the home composer.
+      if (isDraftHeroState) openLaunchWindow();
       const result = onSend(...args);
       if (reviewMode && activeThreadRef) useRightPanelStore.getState().close(activeThreadRef);
       return result;
@@ -3280,12 +3274,6 @@ export default function ChatView(props: ChatViewProps) {
     (folders: Parameters<ChatComposerHandle["addDroppedFolders"]>[0]) =>
       composerRef.current?.addDroppedFolders(folders),
   );
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Sapphire: ends the first-message launch window after its animation has played
-  useEffect(() => {
-    if (!heroLaunching) return;
-    const timer = window.setTimeout(() => setHeroLaunching(false), 1600);
-    return () => window.clearTimeout(timer);
-  }, [heroLaunching]);
   const chooseHeroSuggestion = (prompt: string) => {
     composerRef.current?.insertTextAtEnd(prompt);
     composerRef.current?.focusAtEnd();
@@ -3549,7 +3537,6 @@ export default function ChatView(props: ChatViewProps) {
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
         data-sapphire-review={reviewMode ? "true" : undefined}
         data-sapphire-hero={isDraftHeroState ? "true" : undefined}
-        data-sapphire-launch={heroLaunching ? "true" : undefined}
         data-dock-open={dockShown ? "true" : undefined}
         data-chat-column
         inert={rightPanelMaximized}

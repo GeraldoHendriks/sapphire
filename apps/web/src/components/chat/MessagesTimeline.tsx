@@ -1,5 +1,5 @@
 import { T, useGT, useMessages, Var } from "gt-react";
-import { claimEntrance, isFreshlyCreated } from "../../sapphire/motion";
+import { entranceForRow } from "../../sapphire/motion";
 import { threadErrorText } from "@t3tools/client-runtime/state/threads";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -1669,10 +1669,13 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       data-message-role={row.kind === "message" ? row.message.role : undefined}
       // Sapphire: a message created moments ago animates in; history mounted on scroll doesn't.
       data-sapphire-enter={
-        row.kind === "message" &&
-        isFreshlyCreated(row.message.createdAt) &&
-        claimEntrance(`${row.message.role}:${row.message.text}`, row.id)
-          ? row.message.role
+        row.kind === "message"
+          ? (entranceForRow({
+              rowId: row.id,
+              messageId: row.message.id,
+              role: row.message.role,
+              createdAt: row.message.createdAt,
+            }) ?? undefined)
           : undefined
       }
     >

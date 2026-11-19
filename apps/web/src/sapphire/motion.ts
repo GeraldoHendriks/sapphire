@@ -12,22 +12,54 @@ export function isFreshlyCreated(createdAt: string, now: number = Date.now()): b
   return age >= -ENTER_WINDOW_MS && age <= ENTER_WINDOW_MS;
 }
 
-const claimedEntrances = new Map<string, { readonly rowId: string; readonly at: number }>();
+export type Entrance = "user" | "assistant" | "launch";
+
+const claims = new Map<string, { readonly rowId: string; readonly at: number }>();
+const rowEntrances = new Map<string, { readonly entrance: Entrance | null; readonly at: number }>();
+let launchAvailableUntil = 0;
+
+/** Opens the window in which the next new user message plays the launch (a new thread starts). */
+export function openLaunchWindow(now: number = Date.now()): void {
+  launchAvailableUntil = now + ENTER_WINDOW_MS;
+}
 
 /**
- * Whether the row `rowId` should play the entrance for the message `signature`. A sent message
- * shows up twice in a row (the optimistic copy, then the server's) under different row ids;
- * only the first row to claim the signature animates, so the swap doesn't replay the entrance.
- * The same row keeps its claim across re-renders.
+ * The entrance a timeline row plays, decided once per row and then kept, so a re-render never
+ * swaps the animation (which would restart it). A message plays only one entrance: the optimistic
+ * copy and the server's copy share a message id, so the swap between them doesn't replay it. The
+ * launch is used up by the first user message after the window opens.
  */
-export function claimEntrance(signature: string, rowId: string, now: number = Date.now()): boolean {
-  for (const [key, claim] of claimedEntrances) {
-    if (now - claim.at > ENTER_WINDOW_MS * 2) claimedEntrances.delete(key);
+export function entranceForRow(input: {
+  readonly rowId: string;
+  readonly messageId: string;
+  readonly role: "user" | "assistant" | "system";
+  readonly createdAt: string;
+  readonly now?: number;
+}): Entrance | null {
+  const now = input.now ?? Date.now();
+  for (const [key, value] of rowEntrances) {
+    if (now - value.at > ENTER_WINDOW_MS * 4) rowEntrances.delete(key);
   }
-  const existing = claimedEntrances.get(signature);
-  if (existing) return existing.rowId === rowId;
-  claimedEntrances.set(signature, { rowId, at: now });
-  return true;
+  for (const [key, value] of claims) {
+    if (now - value.at > ENTER_WINDOW_MS * 4) claims.delete(key);
+  }
+  const decided = rowEntrances.get(input.rowId);
+  if (decided) return decided.entrance;
+  let entrance: Entrance | null = null;
+  if (input.role !== "system" && isFreshlyCreated(input.createdAt, now)) {
+    const claim = claims.get(input.messageId);
+    if (!claim || claim.rowId === input.rowId) {
+      claims.set(input.messageId, { rowId: input.rowId, at: now });
+      if (input.role === "user" && now <= launchAvailableUntil) {
+        launchAvailableUntil = 0;
+        entrance = "launch";
+      } else {
+        entrance = input.role;
+      }
+    }
+  }
+  rowEntrances.set(input.rowId, { entrance, at: now });
+  return entrance;
 }
 
 export type HeroGreeting = "morning" | "afternoon" | "evening" | "night";

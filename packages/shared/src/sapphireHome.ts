@@ -4,14 +4,17 @@
  * agent shell cannot be steered onto that live data by accident.
  */
 export function sapphireLiveHome(env: NodeJS.ProcessEnv, homeDirectory: string): string {
-  return env.SAPPHIRE_HOME?.trim() || `${trimSeparators(homeDirectory)}/.sapphire`;
+  return (
+    env.SAPPHIRE_HOME?.trim() ||
+    env.SAPPHIRE_LIVE_HOME?.trim() ||
+    `${trimSeparators(homeDirectory)}/.sapphire`
+  );
 }
 
 /**
- * Prepares a Sapphire process's environment. A `T3CODE_HOME` pointing at T3 Code's `~/.t3`, such
- * as one inherited from a shell T3 Code started, is dropped so the default `~/.sapphire` applies.
- * With `adoptSapphireHome`, `SAPPHIRE_HOME` stands in for `T3CODE_HOME` (the server and desktop);
- * the dev runner passes false because it chooses its own sandboxed home.
+ * Ignores a `T3CODE_HOME` or `SAPPHIRE_HOME` that points at T3 Code's `~/.t3`. With
+ * `adoptSapphireHome` (server, desktop), `SAPPHIRE_HOME` stands in for `T3CODE_HOME`; the dev
+ * runner passes false because it picks its own sandboxed home.
  */
 export function isolateSapphireHomeEnv(
   env: NodeJS.ProcessEnv,
@@ -20,8 +23,10 @@ export function isolateSapphireHomeEnv(
 ): void {
   const own = env.SAPPHIRE_HOME?.trim();
   delete env.SAPPHIRE_HOME;
-  if (own && options.adoptSapphireHome) {
+  if (own && options.adoptSapphireHome && !isT3CodeHome(own, homeDirectory)) {
     env.T3CODE_HOME = own;
+    // Children inherit T3CODE_HOME; this tells a dev runner among them that it is a live home.
+    env.SAPPHIRE_LIVE_HOME = own;
     return;
   }
   const inherited = env.T3CODE_HOME?.trim();

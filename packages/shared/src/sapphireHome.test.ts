@@ -6,7 +6,12 @@ describe("isolateSapphireHomeEnv", () => {
   it("adopts SAPPHIRE_HOME, drops an inherited ~/.t3, and never passes SAPPHIRE_HOME on", () => {
     const own: NodeJS.ProcessEnv = { SAPPHIRE_HOME: "/data/sapphire", T3CODE_HOME: "/home/a/.t3" };
     isolateSapphireHomeEnv(own, "/home/a");
-    expect(own).toEqual({ T3CODE_HOME: "/data/sapphire" });
+    expect(own).toEqual({ T3CODE_HOME: "/data/sapphire", SAPPHIRE_LIVE_HOME: "/data/sapphire" });
+    expect(sapphireLiveHome(own, "/home/a")).toBe("/data/sapphire");
+
+    const pointsAtT3: NodeJS.ProcessEnv = { SAPPHIRE_HOME: "~/.t3" };
+    isolateSapphireHomeEnv(pointsAtT3, "/home/a");
+    expect(pointsAtT3).toEqual({});
 
     const devRunner: NodeJS.ProcessEnv = { SAPPHIRE_HOME: "/data/sapphire" };
     isolateSapphireHomeEnv(devRunner, "/home/a", { adoptSapphireHome: false });

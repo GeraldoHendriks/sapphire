@@ -7729,9 +7729,9 @@
       "v": "v"
     }
   ],
-  "d0e747ae0c4f68a5": "Impossible d’installer t3",
-  "ba3ac338f36cba74": "Impossible de supprimer t3",
-  "9c942b53b58119b8": "Impossible d’ajouter t3 au PATH",
+  "47c6d8959a9d1fa7": "Impossible d’installer sapphire",
+  "c311773a9d0c0036": "Impossible de supprimer sapphire",
+  "7cb7b3831f9cc61e": "Impossible d’ajouter sapphire au PATH",
   "258820fbec444d34": "Un autre sapphire dans {path} s’exécute en premier dans un nouveau terminal. Supprimez-le pour utiliser celui de Sapphire.",
   "d837d77277f9b135": "Lancez la CLI de Sapphire avec `sapphire` depuis n’importe quel terminal.",
   "4f6e93011ef2da6f": "Installé dans {path}. Ouvrez un nouveau terminal pour l’utiliser.",

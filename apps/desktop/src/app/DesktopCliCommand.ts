@@ -21,6 +21,8 @@ import * as DesktopCliShim from "./DesktopCliShim.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import { makeComponentLogger } from "./DesktopObservability.ts";
 
+// Sapphire: messages and links name the `sapphire` command, apart from T3 Code's `t3`.
+
 const { logInfo, logWarning } = makeComponentLogger("desktop-cli-command");
 
 export class DesktopCliCommandError extends Schema.TaggedError<DesktopCliCommandError>()(
@@ -299,7 +301,7 @@ export const make = Effect.gen(function* () {
       // PATH would split the folder at the `;`, leaving two wrong entries behind.
       if (binDirectory.includes(";")) {
         return yield* fail(
-          `T3 Code cannot put ${binDirectory} on PATH because it has a ";". Run ${launcher} directly.`,
+          `Sapphire cannot put ${binDirectory} on PATH because it has a ";". Run ${launcher} directly.`,
         );
       }
       const entries = pathEntries(yield* readUserPath, ";");
@@ -411,7 +413,7 @@ export const make = Effect.gen(function* () {
     if (!(yield* folderOnPath(installed.value)) && !(yield* hasLine(setup))) {
       yield* fs.makeDirectory(path.dirname(setup.path), { recursive: true }).pipe(
         Effect.andThen(
-          fs.writeFileString(setup.path, `\n# Added by T3 Code\n${setup.line}\n`, { flag: "a" }),
+          fs.writeFileString(setup.path, `\n# Added by Sapphire\n${setup.line}\n`, { flag: "a" }),
         ),
         Effect.mapError(() => fail(`Could not add sapphire to ${setup.file}.`)),
       );

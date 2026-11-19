@@ -7734,9 +7734,9 @@
       "v": "v"
     }
   ],
-  "d0e747ae0c4f68a5": "Kunde inte installera t3",
-  "ba3ac338f36cba74": "Kunde inte ta bort t3",
-  "9c942b53b58119b8": "Kunde inte lägga till t3 i PATH",
+  "47c6d8959a9d1fa7": "Det gick inte att installera sapphire",
+  "c311773a9d0c0036": "Det gick inte att ta bort sapphire",
+  "7cb7b3831f9cc61e": "Det gick inte att lägga till sapphire i PATH",
   "258820fbec444d34": "En annan sapphire i {path} körs först i en ny terminal. Ta bort den för att använda Sapphires.",
   "d837d77277f9b135": "Kör Sapphires CLI som `sapphire` från valfri terminal.",
   "4f6e93011ef2da6f": "Installerad i {path}. Öppna en ny terminal för att använda den.",

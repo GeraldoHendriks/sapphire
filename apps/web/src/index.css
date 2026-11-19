@@ -2995,23 +2995,18 @@ code {
   }
 }
 
-/* The first message of a new thread lifts out of the home composer, coming into focus. */
+/* The first message of a new thread lifts out of the home composer. */
 @keyframes sapphire-launch {
   0% {
     opacity: 0;
     transform: translateY(min(48vh, 440px)) scale(0.92);
-    filter: blur(4px);
   }
   25% {
     opacity: 1;
   }
-  40% {
-    filter: blur(0);
-  }
   100% {
     opacity: 1;
     transform: none;
-    filter: none;
   }
 }
 
@@ -3026,19 +3021,19 @@ code {
   }
 }
 
+/* Fill mode `backwards` only: a finished entrance must not pin transform or opacity, or it would
+   override hover states and drag transforms afterwards. */
 [data-sapphire-enter="user"] > * {
   transform-origin: 100% 100%;
-  animation: sapphire-message-in-user 460ms var(--sapphire-spring) both;
+  animation: sapphire-message-in-user 460ms var(--sapphire-spring) backwards;
 }
 
 [data-sapphire-enter="assistant"] > * {
-  animation: sapphire-message-in 360ms var(--sapphire-ease-out) both;
+  animation: sapphire-message-in 360ms var(--sapphire-ease-out) backwards;
 }
 
-/* Keyed to the home screen leaving rather than the row mounting: the row can be created a beat
-   before it shows, and the launch must play where the user can see it. */
-[data-sapphire-launch] [data-message-role="user"] > * {
-  animation: sapphire-launch 900ms cubic-bezier(0.33, 1, 0.68, 1) both;
+[data-sapphire-enter="launch"] > * {
+  animation: sapphire-launch 900ms cubic-bezier(0.33, 1, 0.68, 1) backwards;
 }
 
 /* Home screen: greeting, headline, composer and starting points arrive in a short stagger. */
@@ -3051,7 +3046,7 @@ code {
 }
 
 [data-sapphire-hero] [data-sapphire-hero-headline] > * {
-  animation: sapphire-rise 560ms var(--sapphire-ease-out) both;
+  animation: sapphire-rise 560ms var(--sapphire-ease-out) backwards;
 }
 
 [data-sapphire-hero] [data-sapphire-hero-headline] > :nth-child(2) {
@@ -3063,7 +3058,7 @@ code {
 }
 
 [data-sapphire-hero] [data-slot="composer-host"] {
-  animation: sapphire-rise 600ms var(--sapphire-ease-out) 110ms both;
+  animation: sapphire-rise 600ms var(--sapphire-ease-out) 110ms backwards;
 }
 
 [data-slot="composer-shell"] {
@@ -3107,7 +3102,7 @@ code {
   &[data-visible] {
     opacity: 1;
     transform: translateX(-50%) scale(1);
-    animation: sapphire-glow-in 900ms var(--sapphire-ease-out) both;
+    animation: sapphire-glow-in 900ms var(--sapphire-ease-out) backwards;
   }
 }
 
@@ -3126,7 +3121,7 @@ code {
   background: color-mix(in srgb, var(--card) 70%, transparent);
   color: var(--muted-foreground);
   font-size: 0.8125rem;
-  animation: sapphire-rise 520ms var(--sapphire-ease-out) both;
+  animation: sapphire-rise 520ms var(--sapphire-ease-out) backwards;
   transition:
     color 150ms ease,
     background-color 150ms ease,
@@ -3150,12 +3145,19 @@ code {
 
 /* Coming back from Review, the conversation fades back in under the top bar. */
 [data-chat-column]:not([data-sapphire-review]) [data-sapphire-conversation] {
-  animation: sapphire-message-in 320ms var(--sapphire-ease-out) both;
+  animation: sapphire-message-in 320ms var(--sapphire-ease-out) backwards;
 }
 
-/* The sidebar's thread rows settle in instead of popping. */
+@keyframes sapphire-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The sidebar's thread rows fade in instead of popping. Opacity only: dnd-kit moves the rows
+   with an inline transform while dragging. */
 [data-thread-item] {
-  animation: sapphire-message-in 260ms var(--sapphire-ease-out) both;
+  animation: sapphire-fade 240ms ease-out backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3163,7 +3165,9 @@ code {
   [data-sapphire-hero] [data-sapphire-hero-headline] > *,
   [data-sapphire-hero] [data-slot="composer-host"],
   [data-chat-column] [data-sapphire-conversation],
-  [data-thread-item] {
-    animation: none;
+  [data-thread-item],
+  .sapphire-suggestion,
+  .sapphire-hero-glow {
+    animation: none !important;
   }
 }

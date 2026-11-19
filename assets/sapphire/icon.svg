@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="224" fill="#0e1117"/>
+  <g transform="translate(512 540)">
+    <!-- table -->
+    <polygon points="-250,-150 -110,-270 110,-270 250,-150" fill="#5b8def"/>
+    <polygon points="-110,-270 0,-150 110,-270" fill="#8fb3f5"/>
+    <polygon points="-250,-150 -110,-270 0,-150" fill="#3f73df"/>
+    <polygon points="250,-150 110,-270 0,-150" fill="#2f5fc8"/>
+    <!-- pavilion -->
+    <polygon points="-250,-150 0,-150 0,300" fill="#2a5bd7"/>
+    <polygon points="250,-150 0,-150 0,300" fill="#1c43a8"/>
+    <polygon points="-250,-150 -95,-150 0,300" fill="#3b6fe6"/>
+    <polygon points="250,-150 95,-150 0,300" fill="#173a93"/>
+  </g>
+</svg>

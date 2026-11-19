@@ -40,8 +40,10 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const names = input.isDevelopment
-      ? { current: "t3code-dev", legacy: "T3 Code (Dev)" }
-      : { current: "t3code-v2", legacy: "T3 Code (Alpha)" };
+      ? // Sapphire keeps its own app data, apart from an installed T3 Code; there is nothing older
+        // of its own to migrate from.
+        { current: "sapphire-dev", legacy: "Sapphire (Dev legacy)" }
+      : { current: "sapphire", legacy: "Sapphire (legacy)" };
     const destinationPath = path.join(input.appDataDirectory, names.current);
     const legacyPath = path.join(input.appDataDirectory, names.legacy);
     const inspect = (resourcePath: string) =>

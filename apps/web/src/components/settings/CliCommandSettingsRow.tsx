@@ -15,9 +15,10 @@ import { SettingsRow } from "./settingsLayout";
 import { useSearchableSetting } from "./settingsSearch";
 
 const FAILURE_TITLES = {
-  install: msg("Could not install t3"),
-  uninstall: msg("Could not remove t3"),
-  addToPath: msg("Could not add t3 to PATH"),
+  // Sapphire: its command is `sapphire`, not T3 Code's `t3`.
+  install: msg("Could not install sapphire"),
+  uninstall: msg("Could not remove sapphire"),
+  addToPath: msg("Could not add sapphire to PATH"),
 } as const;
 
 /** The desktop `sapphire` command's state, and its actions with a toast on failure. */

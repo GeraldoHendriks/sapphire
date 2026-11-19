@@ -169,8 +169,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    the variables and Settings -> Appearance can override them at runtime. The
    default stacks are mirrored in `appearanceFonts.ts`. */
 @theme {
+  /* Sapphire: Instrument Sans first. */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
+    "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI",
+    system-ui, sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 }
@@ -2657,51 +2659,62 @@ code {
    minimal look with a sapphire accent), then the Chat/Review mode pieces.
    ========================================================================== */
 
+/* Siip-inspired neutrals (cool greys, navy ink) with a sapphire accent, and ChatGPT-like calm. */
 :root {
   --sapphire-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --sapphire-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --sapphire-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
   --sapphire-duration: 240ms;
-  --radius: 0.5rem;
-  --background: #fbfbfc;
-  --foreground: #1d1f24;
+  --radius: 0.625rem;
+  --background: #f7f8fa;
+  --foreground: #0f111a;
   --card: #ffffff;
   --popover: #ffffff;
   --primary: oklch(0.52 0.16 257);
-  --muted-foreground: #6b6f78;
-  --accent: #f1f2f4;
-  --border: #e6e7eb;
-  --input: #d9dbe0;
-  --sidebar: #f6f7f9;
+  --muted-foreground: #5f6774;
+  --accent: #eceef2;
+  --border: #e2e5ea;
+  --input: #d6dae1;
+  --sidebar: #eef0f3;
+  --message-surface: #eceef2;
   --glass-blur: 6px;
   --glass-opacity: 94%;
 
   @variant dark {
-    --background: #0d0e11;
-    --foreground: #e8eaee;
-    --card: #131519;
-    --popover: #15171b;
-    --surface-raised: #131519;
-    --primary: oklch(0.64 0.15 256);
-    --muted-foreground: #8b9099;
-    --accent: rgb(255 255 255 / 5%);
-    --muted: rgb(255 255 255 / 3%);
-    --message-surface: #171a1f;
-    --border: rgb(255 255 255 / 7%);
-    --input: rgb(255 255 255 / 10%);
-    --sidebar: #0a0b0d;
+    --background: #10131a;
+    --foreground: #e9ebee;
+    --card: #171b24;
+    --popover: #1b2029;
+    --surface-raised: #171b24;
+    --primary: oklch(0.66 0.15 256);
+    --muted-foreground: #8e96a3;
+    --accent: rgb(233 235 238 / 6%);
+    --muted: rgb(233 235 238 / 3%);
+    --message-surface: #1e232e;
+    --border: rgb(233 235 238 / 8%);
+    --input: rgb(233 235 238 / 11%);
+    --sidebar: #0c0f15;
     --glass-blur: 8px;
   }
 }
 
 [data-app-sidebar] {
-  --sidebar: #f6f7f9;
-  --background: #fbfbfc;
+  --sidebar: #eef0f3;
+  --background: #f7f8fa;
+  --sidebar-row-hover: #e6e9ee;
+  --sidebar-row-active: #ffffff;
+  --sidebar-row-selected: #ffffff;
+  --border: #e2e5ea;
 
   @variant dark {
-    --background: #0a0b0d;
-    --card: #0a0b0d;
-    --sidebar: #0a0b0d;
-    --accent: rgb(255 255 255 / 5%);
-    --border: rgb(255 255 255 / 6%);
+    --background: #0c0f15;
+    --card: #0c0f15;
+    --sidebar: #0c0f15;
+    --accent: rgb(233 235 238 / 6%);
+    --sidebar-row-hover: rgb(233 235 238 / 4%);
+    --sidebar-row-active: #171b24;
+    --sidebar-row-selected: #171b24;
+    --border: rgb(233 235 238 / 6%);
   }
 }
 
@@ -2942,5 +2955,219 @@ code {
 @media (prefers-reduced-motion: reduce) {
   [data-sapphire-review] [data-chat-composer-overlay] {
     transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Sapphire motion and home screen. One-shot transform/opacity animations only, never a loop that
+   repaints every frame, and all of it stands down under prefers-reduced-motion.
+   --------------------------------------------------------------------------------------------- */
+@keyframes sapphire-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sapphire-message-in-user {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sapphire-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The first message of a new thread lifts out of the home composer. */
+@keyframes sapphire-launch {
+  0% {
+    opacity: 0;
+    transform: translateY(min(48vh, 440px)) scale(0.92);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sapphire-glow-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* Fill mode `backwards` only: a finished entrance must not pin transform or opacity, or it would
+   override hover states and drag transforms afterwards. */
+[data-sapphire-enter="user"] > * {
+  transform-origin: 100% 100%;
+  animation: sapphire-message-in-user 460ms var(--sapphire-spring) backwards;
+}
+
+[data-sapphire-enter="assistant"] > * {
+  animation: sapphire-message-in 360ms var(--sapphire-ease-out) backwards;
+}
+
+[data-sapphire-enter="launch"] > * {
+  animation: sapphire-launch 900ms cubic-bezier(0.33, 1, 0.68, 1) backwards;
+}
+
+/* Home screen: greeting, headline, composer and starting points arrive in a short stagger. */
+/* Larger type through the scale variables, so the heading's own fit measurement agrees. */
+[data-sapphire-hero-headline] {
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+  --text-3xl--line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+[data-sapphire-hero] [data-sapphire-hero-headline] > * {
+  animation: sapphire-rise 560ms var(--sapphire-ease-out) backwards;
+}
+
+[data-sapphire-hero] [data-sapphire-hero-headline] > :nth-child(2) {
+  animation-delay: 50ms;
+}
+
+[data-sapphire-hero] [data-sapphire-hero-headline] > :nth-child(3) {
+  animation-delay: 90ms;
+}
+
+[data-sapphire-hero] [data-slot="composer-host"] {
+  animation: sapphire-rise 600ms var(--sapphire-ease-out) 110ms backwards;
+}
+
+[data-slot="composer-shell"] {
+  --radius-2xl: 1.375rem;
+}
+
+[data-slot="composer-host"] {
+  transition: box-shadow 200ms ease;
+}
+
+[data-slot="composer-host"]:focus-within {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--primary) 14%, transparent),
+    0 8px 30px -12px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+@utility sapphire-hero-glow {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  z-index: 0;
+  width: min(72rem, 120%);
+  height: 28rem;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--primary) 18%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      closest-side at 70% 40%,
+      color-mix(in srgb, oklch(0.7 0.13 220) 10%, transparent),
+      transparent 70%
+    );
+  opacity: 0;
+  transform: translateX(-50%) scale(0.96);
+  transition:
+    opacity 700ms var(--sapphire-ease),
+    transform 900ms var(--sapphire-ease-out);
+  &[data-visible] {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    animation: sapphire-glow-in 900ms var(--sapphire-ease-out) backwards;
+  }
+}
+
+@utility sapphire-hero-greeting {
+  letter-spacing: 0.01em;
+}
+
+@utility sapphire-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  animation: sapphire-rise 520ms var(--sapphire-ease-out) backwards;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+  & svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    color: var(--primary);
+  }
+  &:hover {
+    color: var(--foreground);
+    background: var(--card);
+    border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+/* Coming back from Review, the conversation fades back in under the top bar. */
+[data-chat-column]:not([data-sapphire-review]) [data-sapphire-conversation] {
+  animation: sapphire-message-in 320ms var(--sapphire-ease-out) backwards;
+}
+
+@keyframes sapphire-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The sidebar's thread rows fade in instead of popping. Opacity only: dnd-kit moves the rows
+   with an inline transform while dragging. */
+[data-thread-item] {
+  animation: sapphire-fade 240ms ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sapphire-enter] > *,
+  [data-sapphire-hero] [data-sapphire-hero-headline] > *,
+  [data-sapphire-hero] [data-slot="composer-host"],
+  [data-chat-column] [data-sapphire-conversation],
+  [data-thread-item],
+  .sapphire-suggestion,
+  .sapphire-hero-glow {
+    animation: none !important;
   }
 }

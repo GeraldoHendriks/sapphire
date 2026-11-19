@@ -384,6 +384,8 @@ import { ThreadVisitWatermark } from "./chat/ThreadVisitWatermark";
 import { ChatTerminalDrawers } from "./chat/ChatTerminalDrawers";
 import { ModeSwitch, type ThreadMode } from "./sapphire/ModeSwitch";
 import { QuickEditDialog } from "./sapphire/QuickEditDialog";
+import { HeroSuggestions } from "./sapphire/HeroSuggestions";
+import { openLaunchWindow } from "../sapphire/motion";
 import { ReviewWorkspace } from "./sapphire/ReviewWorkspace";
 import { SubmitReviewDialog } from "./sapphire/SubmitReviewDialog";
 import {
@@ -3050,6 +3052,8 @@ export default function ChatView(props: ChatViewProps) {
   // Sapphire: sending from Review mode's dock returns to Chat, where the reply appears.
   const onComposerSendFromAnyModeStable = useStableCallback(
     (...args: Parameters<typeof onSend>) => {
+      // Sapphire: the first message of a new thread lifts out of the home composer.
+      if (isDraftHeroState) openLaunchWindow();
       const result = onSend(...args);
       if (reviewMode && activeThreadRef) useRightPanelStore.getState().close(activeThreadRef);
       return result;
@@ -3270,6 +3274,10 @@ export default function ChatView(props: ChatViewProps) {
     (folders: Parameters<ChatComposerHandle["addDroppedFolders"]>[0]) =>
       composerRef.current?.addDroppedFolders(folders),
   );
+  const chooseHeroSuggestion = (prompt: string) => {
+    composerRef.current?.insertTextAtEnd(prompt);
+    composerRef.current?.focusAtEnd();
+  };
   // Sapphire: Review mode state. The composer docks at the bottom of Review and slides up on
   // hover; once it holds anything it stays up until dismissed.
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
@@ -3528,6 +3536,7 @@ export default function ChatView(props: ChatViewProps) {
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
         data-sapphire-review={reviewMode ? "true" : undefined}
+        data-sapphire-hero={isDraftHeroState ? "true" : undefined}
         data-dock-open={dockShown ? "true" : undefined}
         data-chat-column
         inert={rightPanelMaximized}
@@ -3633,6 +3642,12 @@ export default function ChatView(props: ChatViewProps) {
               data-sapphire-conversation
               className="relative flex min-h-0 flex-1 flex-col bg-background"
             >
+              {/* Sapphire: a soft glow behind the home screen, fading out as the thread starts. */}
+              <div
+                aria-hidden
+                className="sapphire-hero-glow"
+                data-visible={isDraftHeroState ? "true" : undefined}
+              />
               <WorkspaceMutationIdContext value={workspaceMutationId}>
                 <ThreadTimeline
                   pendingApprovals={pendingApprovals}
@@ -4099,6 +4114,14 @@ export default function ChatView(props: ChatViewProps) {
                         // would fall off-screen, so there it takes space and lifts the composer.
                         <div className="absolute inset-x-0 top-full flex flex-col gap-1 pt-4 [@media(max-height:34rem)]:static">
                           <ComposerBannerStack items={composerBannerItems} detached />
+                        </div>
+                      ) : null}
+                      {isDraftHeroState &&
+                      composerBannerItems.length === 0 &&
+                      !composerHasContent ? (
+                        // Sapphire: starting points under the home composer.
+                        <div className="absolute inset-x-0 top-full pt-6 [@media(max-height:34rem)]:hidden">
+                          <HeroSuggestions onChoose={chooseHeroSuggestion} />
                         </div>
                       ) : null}
                     </div>

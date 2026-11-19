@@ -21,6 +21,7 @@ import * as Electron from "electron";
 
 import * as NetService from "@t3tools/shared/Net";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { isolateSapphireHomeEnv } from "@t3tools/shared/sapphireHome";
 
 import * as DesktopIpc from "./ipc/DesktopIpc.ts";
 import * as ElectronApp from "./electron/ElectronApp.ts";
@@ -80,6 +81,9 @@ import * as DesktopWindow from "./window/DesktopWindow.ts";
 import * as DesktopWslBackend from "./wsl/DesktopWslBackend.ts";
 import * as DesktopWslEnvironment from "./wsl/DesktopWslEnvironment.ts";
 import * as DesktopWslServerTree from "./wsl/DesktopWslServerTree.ts";
+
+// Sapphire: never open an installed T3 Code's home; SAPPHIRE_HOME names Sapphire's own.
+isolateSapphireHomeEnv(process.env, NodeOS.homedir());
 
 if (process.argv.includes("--version")) {
   try {

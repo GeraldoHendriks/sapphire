@@ -13,6 +13,8 @@ import * as Scope from "effect/Scope";
 import * as Electron from "electron";
 
 export const DESKTOP_HOST = "app";
+// Sapphire keeps T3 Code's schemes: T3's hosted sign-in (Clerk, T3 Connect) returns only to them
+// and only accepts their renderer origin. Beside T3 Code, the app launched last takes the links.
 const DESKTOP_PRODUCTION_SCHEME = "t3code";
 const DESKTOP_DEVELOPMENT_SCHEME = "t3code-dev";
 

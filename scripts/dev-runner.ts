@@ -7,6 +7,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NetService from "@t3tools/shared/Net";
 import { resolveGitWorktreePath, resolveWorktreeT3Home } from "@t3tools/shared/devHome";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { isolateSapphireHomeEnv } from "@t3tools/shared/sapphireHome";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
@@ -649,16 +650,13 @@ const prepareFirstStart = Effect.fn("dev-runner.prepareFirstStart")(function* (i
         );
       }
     }
-    // Sapphire: seed from Sapphire's own install when there is one, else from T3 Code's.
-    const sapphireSource = path.join(
+    // Sapphire: seed only from Sapphire's own install, never from T3 Code's threads.
+    const source = path.join(
       yield* HostProcess.HomeDirectory,
       ".sapphire",
       "userdata",
       "statev2.sqlite",
     );
-    const source = (yield* exists(sapphireSource))
-      ? sapphireSource
-      : path.join(yield* HostProcess.HomeDirectory, ".t3", "userdata", "statev2.sqlite");
     // A V1 state.sqlite counts as data too: the server imports it only while
     // statev2.sqlite is missing, so seeding would hide it.
     if (
@@ -1078,6 +1076,8 @@ const cliRuntimeLayer = Layer.mergeAll(
 );
 
 if (import.meta.main) {
+  // Sapphire: never open an installed T3 Code's home; SAPPHIRE_HOME names Sapphire's own.
+  isolateSapphireHomeEnv(process.env, NodeOS.homedir());
   // runMain interrupts (running finalizers such as the --share unmapping) only
   // on SIGINT/SIGTERM; a closed terminal or dropped SSH session sends SIGHUP.
   process.on("SIGHUP", () => process.kill(process.pid, "SIGTERM"));

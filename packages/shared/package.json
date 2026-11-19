@@ -415,6 +415,10 @@
       "types": "./src/usageLimits.ts",
       "import": "./src/usageLimits.ts"
     },
+    "./sapphireHome": {
+      "types": "./src/sapphireHome.ts",
+      "import": "./src/sapphireHome.ts"
+    },
     "./desktopAppControl": {
       "types": "./src/desktopAppControl.ts",
       "import": "./src/desktopAppControl.ts"

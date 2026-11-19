@@ -53,8 +53,9 @@ way Zen builds on Firefox or Helium on Chromium.
 
 - Agents cannot yet switch a thread's mode, or arrange its panes, through MCP tools. They can
   reveal a browser tab, which opens Review mode.
-- Self-update (server update, CLI releases) still follows T3 Code's npm package. Don't use the
-  in-app server update for now.
-- Desktop packaging is renamed but has not been built or tested yet. The `t3code://` URL scheme
-  is unchanged, so it clashes with an installed T3 Code.
+- Self-update, the `t3` CLI and SSH remote setup still use T3 Code's releases and npm package,
+  because Sapphire publishes none yet. Don't use the in-app server update for now.
+- Desktop packaging is renamed (Sapphire, `dev.sapphire.app`, `sapphire` executable) but has not
+  been built or tested. The Linux AppStream metadata, window class and `t3code://` URL scheme are
+  still T3 Code's, so they clash with an installed T3 Code.
 - Mobile is untouched.

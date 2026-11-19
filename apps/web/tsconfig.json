@@ -27,6 +27,7 @@
   },
   "include": [
     "src",
+    "../../sapphire.json",
     "vite",
     "vite.config.ts",
     "vercel.ts",

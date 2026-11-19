@@ -1687,6 +1687,8 @@
   "e9cf5c708ad52a85": "Verfügbar, sobald der Worktree des Threads eingerichtet ist.",
   "6b1c0d7732da6648": "Kontext konnte nicht komprimiert werden.",
   "bbbce20ad5d6790d": "{count, plural, one {{count} eingereiht} other {{count} eingereiht}}",
+  "d88d3b25fe009d47": "Review konnte nicht gesendet werden",
+  "c72b2cd4103dcdfb": "Die Eingabe kann es gerade nicht annehmen. Beantworte zuerst offene Fragen.",
   "2a04f6a39f1ad81e": "Eingabe ausblenden",
   "2d3ad1215c5d8a52": "Diese Verbindung kann keine Threads ändern.",
   "86860f420c3af36a": "Rechner wird vorbereitet",

@@ -1688,6 +1688,8 @@
   "e9cf5c708ad52a85": "Tillgängligt när trådens worktree har konfigurerats.",
   "6b1c0d7732da6648": "Det gick inte att komprimera kontexten.",
   "bbbce20ad5d6790d": "{count, plural, one {{count} i kö} other {{count} i kö}}",
+  "d88d3b25fe009d47": "Det gick inte att skicka granskningen",
+  "c72b2cd4103dcdfb": "Inmatningen kan inte ta emot den just nu. Svara på öppna frågor först.",
   "2a04f6a39f1ad81e": "Dölj inmatningen",
   "2d3ad1215c5d8a52": "Den här anslutningen kan inte ändra trådar.",
   "86860f420c3af36a": "Förbereder dator",

@@ -22,7 +22,8 @@ export function SubmitReviewDialog(props: {
   readonly open: boolean;
   readonly pendingCommentCount: number;
   readonly onOpenChange: (open: boolean) => void;
-  readonly onSubmit: (verdict: ReviewVerdict, note: string) => void;
+  /** Returns false when the review could not be sent; the note then stays for another try. */
+  readonly onSubmit: (verdict: ReviewVerdict, note: string) => boolean;
 }) {
   const gt = useGT();
   const [verdict, setVerdict] = useState<ReviewVerdict>("comment");
@@ -48,7 +49,7 @@ export function SubmitReviewDialog(props: {
     verdict === "comment" && note.trim().length === 0 && props.pendingCommentCount === 0;
   const submit = () => {
     if (nothingToSend) return;
-    props.onSubmit(verdict, note.trim());
+    if (!props.onSubmit(verdict, note.trim())) return;
     setNote("");
     setVerdict("comment");
   };

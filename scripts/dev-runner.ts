@@ -67,8 +67,10 @@ function sharedBackendTargetHost(host: string | undefined): string {
   return "127.0.0.1";
 }
 
+// Sapphire: the server's default home is ~/.sapphire, so implicit dev state lands in
+// ~/.sapphire/dev, apart from an installed T3 Code's ~/.t3.
 export const DEFAULT_T3_HOME = Effect.map(Effect.service(Path.Path), (path) =>
-  path.join(NodeOS.homedir(), ".t3"),
+  path.join(NodeOS.homedir(), ".sapphire"),
 );
 
 const MODE_ARGS = {
@@ -330,9 +332,13 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   };
 
   const path = yield* Path.Path;
-  // The server stores an explicit home's state in userdata, which for ~/.t3 is the live
-  // install. Left implicit, dev state goes to ~/.t3/dev.
-  const isLiveHome = resolvedBaseDir === path.join(yield* HostProcess.HomeDirectory, ".t3");
+  // The server stores an explicit home's state in userdata, which for ~/.sapphire (and an
+  // installed T3 Code's ~/.t3) is a live install. Left implicit, dev state goes to
+  // ~/.sapphire/dev.
+  const userHome = yield* HostProcess.HomeDirectory;
+  const isLiveHome =
+    resolvedBaseDir === path.join(userHome, ".sapphire") ||
+    resolvedBaseDir === path.join(userHome, ".t3");
   if (configuredBaseDir !== undefined && !isLiveHome) {
     output.T3CODE_HOME = resolvedBaseDir;
   } else {
@@ -643,7 +649,16 @@ const prepareFirstStart = Effect.fn("dev-runner.prepareFirstStart")(function* (i
         );
       }
     }
-    const source = path.join(yield* HostProcess.HomeDirectory, ".t3", "userdata", "statev2.sqlite");
+    // Sapphire: seed from Sapphire's own install when there is one, else from T3 Code's.
+    const sapphireSource = path.join(
+      yield* HostProcess.HomeDirectory,
+      ".sapphire",
+      "userdata",
+      "statev2.sqlite",
+    );
+    const source = (yield* exists(sapphireSource))
+      ? sapphireSource
+      : path.join(yield* HostProcess.HomeDirectory, ".t3", "userdata", "statev2.sqlite");
     // A V1 state.sqlite counts as data too: the server imports it only while
     // statev2.sqlite is missing, so seeding would hide it.
     if (

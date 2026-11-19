@@ -424,6 +424,12 @@ describe("rightPanelStore", () => {
     store.show(refA);
     expect(store.openProactive(refA, nextTurn, store.getUserActionRevision(refA))).toBe(true);
     expect(threadState()).toMatchObject({ isOpen: true, activeSurfaceId: "diff" });
+
+    // Back in Chat, a later turn's diff marks Review again although the diff tab already exists.
+    store.close(refA);
+    const laterTurn = { ...completedDiff, turnId: RunId.make("turn-3") };
+    expect(store.openProactive(refA, laterTurn, store.getUserActionRevision(refA))).toBe(true);
+    expect(threadState()).toMatchObject({ isOpen: false, unseen: true });
   });
 
   it("keeps manual choices scoped to their thread and environment", () => {
@@ -1141,12 +1147,12 @@ describe("rightPanelStore", () => {
     });
   });
 
-  it("closing the final terminal pane removes its surface and closes the panel", () => {
+  it("closing the final terminal pane removes its surface and stays in Review mode", () => {
     useRightPanelStore.getState().openTerminal(refA, "term-1");
     useRightPanelStore.getState().closeTerminal(refA, "terminal:term-1", "term-1");
 
     expect(selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA)).toEqual({
-      isOpen: false,
+      isOpen: true,
       activeSurfaceId: null,
       surfaces: [],
     });
@@ -1202,12 +1208,12 @@ describe("rightPanelStore", () => {
     });
   });
 
-  it("hides the panel when browser reconciliation removes its last session tab", () => {
+  it("stays in Review mode when browser reconciliation removes its last session tab", () => {
     const store = useRightPanelStore.getState();
     store.openBrowser(refA, "tab-a");
     store.reconcileBrowserSurfaces(refA, []);
     expect(selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA)).toEqual({
-      isOpen: false,
+      isOpen: true,
       activeSurfaceId: null,
       surfaces: [],
     });

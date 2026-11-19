@@ -3301,6 +3301,19 @@ export default function ChatView(props: ChatViewProps) {
     if (mode === "review") useRightPanelStore.getState().show(activeThreadRef);
     else useRightPanelStore.getState().close(activeThreadRef);
   };
+  const reviewModeRef = useRef<{ key: string | null; review: boolean }>({
+    key: activeThreadKey,
+    review: reviewMode,
+  });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Sapphire: the terminal lives in Review mode, so leaving Review collapses it; a terminal left open there would otherwise be toggled, unseen, by the next shortcut in Chat
+  useEffect(() => {
+    const previous = reviewModeRef.current;
+    reviewModeRef.current = { key: activeThreadKey, review: reviewMode };
+    if (previous.key !== activeThreadKey || !previous.review || reviewMode || !activeThreadRef) {
+      return;
+    }
+    useTerminalUiStateStore.getState().setTerminalOpen(activeThreadRef, false);
+  }, [activeThreadKey, activeThreadRef, reviewMode]);
   const terminalOpenRef = useRef<{ key: string | null; open: boolean }>({
     key: activeThreadKey,
     open: Boolean(terminalUiState.terminalOpen),
@@ -3315,18 +3328,35 @@ export default function ChatView(props: ChatViewProps) {
       useRightPanelStore.getState().show(activeThreadRef);
     }
   }, [activeThreadKey, activeThreadRef, embedded, reviewMode, terminalUiState.terminalOpen]);
-  const submitReview = (verdict: ReviewVerdict, note: string) => {
-    setSubmitReviewOpen(false);
+  const submitReview = (verdict: ReviewVerdict, note: string): boolean => {
     const text = reviewSubmissionMessage({
       verdict,
       note,
       commentCount: pendingReviewCommentCount,
     });
-    composerRef.current?.insertTextAtEnd(text, { ensureLeadingBoundary: true });
+    // The composer can refuse text (a pending question, a draft that needs a project first);
+    // then nothing is sent and the dialog stays open with the note intact.
+    if (!composerRef.current?.insertTextAtEnd(text, { ensureLeadingBoundary: true })) {
+      toastManager.add({
+        type: "error",
+        title: gt("Could not send the review"),
+        description: gt("The composer can't take it right now. Answer any open question first."),
+      });
+      return false;
+    }
+    setSubmitReviewOpen(false);
     if (activeThreadRef) useRightPanelStore.getState().close(activeThreadRef);
     window.requestAnimationFrame(() => void onComposerSendStable());
+    return true;
   };
   const closeQuickEdit = (surface: RightPanelSurface) => {
+    // The popup is transient: closing it drops every file surface, so none lingers unseen in
+    // Review or pops up again as the fallback tab.
+    for (const fileSurface of rightPanelState.surfaces) {
+      if (fileSurface.kind === "file" && fileSurface.id !== surface.id) {
+        closeRightPanelSurfaceStable(fileSurface);
+      }
+    }
     closeRightPanelSurfaceStable(surface);
     setQuickEditBaseline({ threadKey: activeThreadKey, key: null });
     if (surface.kind !== "file" || !handEditedPathsRef.current.has(surface.relativePath)) return;
@@ -3375,7 +3405,9 @@ export default function ChatView(props: ChatViewProps) {
         composerDraftTarget={composerDraftTarget}
         keybindings={keybindings}
         configuredPreviewUrls={configuredPreviewUrls}
-        workspaceMutationId={reviewMutationId}
+        // Only the diff shows the frozen snapshot. An editable file must read the live contents,
+        // or a quick edit would save stale text over the agent's newer changes.
+        workspaceMutationId={surface.kind === "diff" ? reviewMutationId : workspaceMutationId}
         getShortcutContext={getShortcutContextStable}
         onSendAnnotation={sendPreviewAnnotationStable}
         onCloseSurface={closeRightPanelSurface}

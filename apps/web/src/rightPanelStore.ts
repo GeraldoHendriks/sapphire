@@ -788,6 +788,8 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             return automaticUpdate(state, threadKey, (thread) => ({
               ...(opened ? upsertSurface(thread, singletonSurface("diff")) : thread),
               proactiveDiffTurnId: request.turnId,
+              // Sapphire: every new turn's diff waits in Review, even when its tab exists.
+              ...(opened && !thread.isOpen ? { unseen: true as const } : {}),
             }));
           }
           if (
@@ -1066,7 +1068,8 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
               const fallback = surfaces[Math.min(index, surfaces.length - 1)] ?? null;
               return {
                 ...current,
-                isOpen: surfaces.length > 0 && current.isOpen,
+                // Sapphire: closing the last terminal tab leaves the thread in Review mode.
+                isOpen: current.isOpen,
                 surfaces,
                 activeSurfaceId:
                   current.activeSurfaceId === surfaceId
@@ -1196,14 +1199,10 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
               (surface) => surface.id === current.activeSurfaceId,
             );
             const fallbackBrowser = surfaces.find((surface) => surface.kind === "preview");
-            // A closed session tab was the last surface: hide the panel rather than leave it on
-            // the empty picker, as a user close would. A dropped `browser:new` placeholder does not count.
-            const closedLastSessionTab =
-              surfaces.length === 0 &&
-              current.surfaces.some((surface) => surface.kind === "preview" && surface.resourceId);
             return {
               ...current,
-              isOpen: closedLastSessionTab ? false : current.isOpen,
+              // Sapphire: the last browser tab closing leaves the thread in Review mode.
+              isOpen: current.isOpen,
               surfaces,
               activeSurfaceId: activeStillExists
                 ? current.activeSurfaceId

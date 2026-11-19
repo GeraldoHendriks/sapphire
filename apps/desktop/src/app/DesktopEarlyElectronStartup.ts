@@ -31,7 +31,8 @@ export interface EarlyLinuxElectronOptions {
 }
 
 export const resolveLinuxDesktopEntryName = (isDevelopment: boolean): string =>
-  isDevelopment ? "com.t3tools.T3Code.Development.desktop" : "com.t3tools.T3Code.desktop";
+  // Sapphire: its own launcher and window class, apart from an installed T3 Code.
+  isDevelopment ? "dev.sapphire.Sapphire.Development.desktop" : "dev.sapphire.Sapphire.desktop";
 
 const trimNonEmpty = (value: string | undefined): string | null => {
   const trimmed = value?.trim();

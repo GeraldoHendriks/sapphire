@@ -7,7 +7,7 @@ import * as PlatformError from "effect/PlatformError";
 
 import { clearStaleGpuCaches, resolveUserDataPath } from "./DesktopUserData.ts";
 
-it.effect.each(["t3code", "Sapphire (legacy)"])(
+it.effect.each(["sapphire-v1", "Sapphire (legacy)"])(
   "preserves Windows credential keys from %s without copying browser databases",
   (sourceName) =>
     Effect.gen(function* () {

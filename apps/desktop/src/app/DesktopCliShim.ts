@@ -116,11 +116,14 @@ export const renderCliShim = (input: {
   ].join("\n");
 };
 
+/** Sapphire: its own command name, so it never shadows an installed T3 Code's `t3`. */
+export const COMMAND_NAME = "sapphire";
+
 export const launcherPath = (environment: DesktopEnvironment.DesktopEnvironment["Service"]) =>
   environment.path.join(
     environment.baseDir,
     "bin",
-    environment.platform === "win32" ? "t3.cmd" : "t3",
+    environment.platform === "win32" ? `${COMMAND_NAME}.cmd` : COMMAND_NAME,
   );
 
 export const install = Effect.gen(function* () {

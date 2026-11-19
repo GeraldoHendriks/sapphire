@@ -7,6 +7,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NetService from "@t3tools/shared/Net";
 import { resolveGitWorktreePath, resolveWorktreeT3Home } from "@t3tools/shared/devHome";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { isolateSapphireHomeEnv, sapphireLiveHome } from "@t3tools/shared/sapphireHome";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
@@ -336,9 +337,12 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   // installed T3 Code's ~/.t3) is a live install. Left implicit, dev state goes to
   // ~/.sapphire/dev.
   const userHome = yield* HostProcess.HomeDirectory;
-  const isLiveHome =
-    resolvedBaseDir === path.join(userHome, ".sapphire") ||
-    resolvedBaseDir === path.join(userHome, ".t3");
+  const liveHome = baseEnv.SAPPHIRE_DEV_LIVE_HOME?.trim();
+  const isLiveHome = [
+    path.join(userHome, ".sapphire"),
+    path.join(userHome, ".t3"),
+    ...(liveHome ? [path.resolve(liveHome)] : []),
+  ].includes(resolvedBaseDir);
   if (configuredBaseDir !== undefined && !isLiveHome) {
     output.T3CODE_HOME = resolvedBaseDir;
   } else {
@@ -649,16 +653,13 @@ const prepareFirstStart = Effect.fn("dev-runner.prepareFirstStart")(function* (i
         );
       }
     }
-    // Sapphire: seed from Sapphire's own install when there is one, else from T3 Code's.
-    const sapphireSource = path.join(
-      yield* HostProcess.HomeDirectory,
-      ".sapphire",
-      "userdata",
-      "statev2.sqlite",
+    // Sapphire: seed only from Sapphire's own install, never from T3 Code's threads.
+    const userHomeDirectory = yield* HostProcess.HomeDirectory;
+    const liveHome = Option.getOrElse(
+      yield* Config.String("SAPPHIRE_DEV_LIVE_HOME").pipe(Config.option),
+      () => path.join(userHomeDirectory, ".sapphire"),
     );
-    const source = (yield* exists(sapphireSource))
-      ? sapphireSource
-      : path.join(yield* HostProcess.HomeDirectory, ".t3", "userdata", "statev2.sqlite");
+    const source = path.join(liveHome, "userdata", "statev2.sqlite");
     // A V1 state.sqlite counts as data too: the server imports it only while
     // statev2.sqlite is missing, so seeding would hide it.
     if (
@@ -1040,7 +1041,7 @@ const devRunnerCli = Command.make("dev-runner", {
   ),
   seed: Flag.Boolean("seed").pipe(
     Flag.withDescription(
-      "Seed an empty worktree database from ~/.t3 on first start (read-only, via migrate-dev-db) if the source is at most 500 MiB. On by default; --no-seed or T3CODE_DEV_SEED=0 skips it.",
+      "Seed an empty worktree database from ~/.sapphire (or SAPPHIRE_HOME) on first start (read-only, via migrate-dev-db) if the source is at most 500 MiB. On by default; --no-seed or T3CODE_DEV_SEED=0 skips it.",
     ),
     Flag.withFallbackConfig(optionalBooleanConfig("T3CODE_DEV_SEED")),
   ),
@@ -1078,6 +1079,9 @@ const cliRuntimeLayer = Layer.mergeAll(
 );
 
 if (import.meta.main) {
+  // Sapphire: remember the live home, then keep it and T3 Code's ~/.t3 away from dev servers.
+  process.env.SAPPHIRE_DEV_LIVE_HOME = sapphireLiveHome(process.env, NodeOS.homedir());
+  isolateSapphireHomeEnv(process.env, NodeOS.homedir(), { adoptSapphireHome: false });
   // runMain interrupts (running finalizers such as the --share unmapping) only
   // on SIGINT/SIGTERM; a closed terminal or dropped SSH session sends SIGHUP.
   process.on("SIGHUP", () => process.kill(process.pid, "SIGTERM"));

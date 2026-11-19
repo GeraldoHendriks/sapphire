@@ -3,6 +3,10 @@ import * as NodeModule from "node:module";
 import * as NodeSea from "node:sea";
 import * as NodeURL from "node:url";
 
+import * as NodeOS from "node:os";
+
+import { isolateSapphireHomeEnv } from "@t3tools/shared/sapphireHome";
+
 import { isEntrypoint } from "./entrypoint.ts";
 
 // Loads the CLI outside the launcher's module graph. Packaged builds embed it as a raw asset.
@@ -44,6 +48,7 @@ if (
   // and skips shutdown, so drop the line instead.
   process.stdout.on("error", ignoreOutputError);
   process.stderr.on("error", ignoreOutputError);
+  isolateSapphireHomeEnv(process.env, NodeOS.homedir());
 
   // The launcher owns shutdown until its child exits, so it bypasses the Effect CLI runtime.
   // A service unit passes nothing, or on Windows the launcher's own flags; help and anything

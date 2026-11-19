@@ -9,7 +9,8 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as ProcessRunner from "../processRunner.ts";
 import { BOOT_SERVICE_UNIT_FILE } from "./bootService.ts";
 
-const PROTECT_DROP_IN = "90-t3code-protect.conf";
+// Sapphire: its own name, apart from an installed T3 Code.
+const PROTECT_DROP_IN = "90-sapphire-protect.conf";
 const SYSTEM_UNIT_DIR = "/etc/systemd/system";
 export const REMOTE_ACCESS_UNITS = ["tailscaled.service", "ssh.service", "sshd.service"];
 

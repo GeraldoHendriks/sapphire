@@ -42,9 +42,21 @@ way Zen builds on Firefox or Helium on Chromium.
 - `package.json` versions follow the upstream release a build is based on. T3 Code compares
   them for server and client compatibility, feature gates and database checks. Sapphire's own
   version, and the upstream commit it is based on, live in `sapphire.json`.
-- Sapphire keeps its own data: the server home is `~/.sapphire`, the desktop app data folder is
-  `sapphire`, and the desktop app id is `dev.sapphire.app`. It can run beside an installed
-  T3 Code without sharing a database.
+- Sapphire installs and runs beside T3 Code without sharing anything local:
+  - data in `~/.sapphire` (`SAPPHIRE_HOME` overrides it), and it refuses T3 Code's `~/.t3`,
+    even when it inherits `T3CODE_HOME` from a T3 Code shell;
+  - default server port 3783, so it doesn't collide with T3 Code on 3773;
+  - desktop app data folder `sapphire`, app id `dev.sapphire.app`, Linux launcher and window
+    class `dev.sapphire.Sapphire`, and package and executable name `sapphire`;
+  - its own desktop control socket, systemd/launchd boot service (`sapphire.service`),
+    agent slices and scopes, and caches;
+  - a `sapphire` command on PATH instead of `t3`;
+  - nothing imported from T3 Code on first start, and dev tools that seed only from
+    `~/.sapphire`.
+- T3 Connect and T3's other hosted features keep working. They return to the app through
+  `t3code://` links and check that page origin, so Sapphire keeps T3 Code's URL scheme. With both
+  apps installed, the one launched last receives those links, so sign in from Sapphire while it
+  is the one running.
 - The upstream GitHub workflows need T3's Blacksmith runners, so they are disabled in this
   repository's Actions settings. `.github/workflows/sapphire-ci.yml` runs the checks on GitHub's
   own runners.
@@ -55,7 +67,7 @@ way Zen builds on Firefox or Helium on Chromium.
   reveal a browser tab, which opens Review mode.
 - Self-update, the `t3` CLI and SSH remote setup still use T3 Code's releases and npm package,
   because Sapphire publishes none yet. Don't use the in-app server update for now.
-- Desktop packaging is renamed (Sapphire, `dev.sapphire.app`, `sapphire` executable) but has not
-  been built or tested. The Linux AppStream metadata, window class and `t3code://` URL scheme are
-  still T3 Code's, so they clash with an installed T3 Code.
+- Desktop packaging has not been built or tested yet. The Linux AppStream metadata file and the
+  GNOME window-capture extension still carry T3 Code's ids.
+- Remote SSH and WSL environments still run T3 Code's runtime under `~/.t3` on the remote side.
 - Mobile is untouched.

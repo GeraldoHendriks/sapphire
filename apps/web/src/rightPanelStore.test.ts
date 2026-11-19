@@ -391,9 +391,18 @@ describe("rightPanelStore", () => {
     expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBe("diff");
   });
 
-  it("offers each completed diff once across dismissal, panel changes, and reload", async () => {
+  it("offers each completed diff once, waiting in Review mode without leaving Chat", async () => {
     const store = useRightPanelStore.getState();
+    const threadState = () =>
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
     expect(store.openProactive(refA, completedDiff, store.getUserActionRevision(refA))).toBe(true);
+    // Sapphire: the offer adds the diff and marks it unseen, but the thread stays in Chat mode.
+    expect(threadState()).toMatchObject({ isOpen: false, activeSurfaceId: "diff", unseen: true });
+    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBeNull();
+    expect(store.openProactive(refA, completedDiff, store.getUserActionRevision(refA))).toBe(false);
+
+    store.show(refA);
+    expect(threadState().unseen).toBeUndefined();
     expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBe("diff");
 
     store.close(refA);
@@ -401,66 +410,26 @@ describe("rightPanelStore", () => {
     expect(store.openProactive(refA, completedDiff, store.getUserActionRevision(refA))).toBe(false);
     expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBeNull();
 
-    store.open(refA, "files");
-    store.openFile(refA, "src/app.ts");
-    await reloadRightPanelStore();
-    expect(store.openProactive(refA, completedDiff, store.getUserActionRevision(refA))).toBe(false);
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBe("file");
-
-    store.closeAllSurfaces(refA);
-    await reloadRightPanelStore();
-    expect(store.openProactive(refA, completedDiff, store.getUserActionRevision(refA))).toBe(false);
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBeNull();
-
-    const otherEnvironment = scopeThreadRef("env-2" as EnvironmentId, refA.threadId);
-    for (const ref of [refB, otherEnvironment]) {
-      expect(store.openProactive(ref, completedDiff, store.getUserActionRevision(ref))).toBe(true);
-      expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, ref)).toBe("diff");
-    }
-
-    const nextTurn = { ...completedDiff, turnId: RunId.make("turn-2") };
-    expect(store.openProactive(refA, nextTurn, store.getUserActionRevision(refA))).toBe(true);
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBe("diff");
-
-    const completedWhileOpen = { ...completedDiff, turnId: RunId.make("turn-3") };
-    const existingDiff = selectActiveRightPanelSurface(
-      useRightPanelStore.getState().byThreadKey,
-      refA,
-    );
-    expect(store.openProactive(refA, completedWhileOpen, store.getUserActionRevision(refA))).toBe(
-      false,
-    );
-    expect(selectActiveRightPanelSurface(useRightPanelStore.getState().byThreadKey, refA)).toEqual(
-      existingDiff,
-    );
-    store.closeSurface(refA, "diff");
-    await reloadRightPanelStore();
-    expect(store.openProactive(refA, completedWhileOpen, store.getUserActionRevision(refA))).toBe(
-      false,
-    );
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBeNull();
-
     // A later storage migration must preserve the dismissal, just like an ordinary reload.
     const { storage, name, version } = useRightPanelStore.persist.getOptions();
     const persisted = await storage!.getItem(name!);
     await storage!.setItem(name!, { ...persisted!, version: version! - 1 });
     await reloadRightPanelStore();
-    expect(store.openProactive(refA, completedWhileOpen, store.getUserActionRevision(refA))).toBe(
-      false,
-    );
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBeNull();
+    expect(store.openProactive(refA, completedDiff, store.getUserActionRevision(refA))).toBe(false);
 
-    expect(
-      store.openProactive(
-        refA,
-        { ...completedDiff, turnId: RunId.make("turn-4") },
-        store.getUserActionRevision(refA),
-      ),
-    ).toBe(true);
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBe("diff");
+    // A thread already in Review mode shows the next turn's diff straight away.
+    store.show(refA);
+    const nextTurn = { ...completedDiff, turnId: RunId.make("turn-2") };
     store.closeSurface(refA, "diff");
-    store.open(refA, "diff");
-    expect(selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, refA)).toBe("diff");
+    store.show(refA);
+    expect(store.openProactive(refA, nextTurn, store.getUserActionRevision(refA))).toBe(true);
+    expect(threadState()).toMatchObject({ isOpen: true, activeSurfaceId: "diff" });
+
+    // Back in Chat, a later turn's diff marks Review again although the diff tab already exists.
+    store.close(refA);
+    const laterTurn = { ...completedDiff, turnId: RunId.make("turn-3") };
+    expect(store.openProactive(refA, laterTurn, store.getUserActionRevision(refA))).toBe(true);
+    expect(threadState()).toMatchObject({ isOpen: false, unseen: true });
   });
 
   it("keeps manual choices scoped to their thread and environment", () => {
@@ -699,8 +668,9 @@ describe("rightPanelStore", () => {
       }),
     ).toEqual({
       byThreadKey: {},
+      // Sapphire defaults the card to a popover, so only a pinned inline card is remembered.
       threadPanelVisibilityByThreadKey: {
-        "env-1:thread-A": { inlineOpen: false, popoverOpen: false },
+        "env-1:thread-B": { inlineOpen: true, popoverOpen: false },
       },
     });
   });
@@ -714,10 +684,10 @@ describe("rightPanelStore", () => {
         useRightPanelStore.getState().threadPanelVisibilityByThreadKey,
         refA,
       ),
-    ).toEqual({ inlineOpen: true, popoverOpen: false });
+    ).toEqual({ inlineOpen: false, popoverOpen: false });
   });
 
-  it("keeps an open popover visible by promoting it to inline when the real panel closes", () => {
+  it("closes an open popover when the thread leaves Review mode", () => {
     const store = useRightPanelStore.getState();
     store.open(refA, "diff");
     store.setThreadPanelOpen(refA, "inline", false);
@@ -729,7 +699,7 @@ describe("rightPanelStore", () => {
         useRightPanelStore.getState().threadPanelVisibilityByThreadKey,
         refA,
       ),
-    ).toEqual({ inlineOpen: true, popoverOpen: true });
+    ).toEqual({ inlineOpen: false, popoverOpen: false });
   });
 
   it("opens workspace-root links as the singleton files explorer", () => {
@@ -1177,12 +1147,12 @@ describe("rightPanelStore", () => {
     });
   });
 
-  it("closing the final terminal pane removes its surface and closes the panel", () => {
+  it("closing the final terminal pane removes its surface and stays in Review mode", () => {
     useRightPanelStore.getState().openTerminal(refA, "term-1");
     useRightPanelStore.getState().closeTerminal(refA, "terminal:term-1", "term-1");
 
     expect(selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA)).toEqual({
-      isOpen: false,
+      isOpen: true,
       activeSurfaceId: null,
       surfaces: [],
     });
@@ -1238,12 +1208,12 @@ describe("rightPanelStore", () => {
     });
   });
 
-  it("hides the panel when browser reconciliation removes its last session tab", () => {
+  it("stays in Review mode when browser reconciliation removes its last session tab", () => {
     const store = useRightPanelStore.getState();
     store.openBrowser(refA, "tab-a");
     store.reconcileBrowserSurfaces(refA, []);
     expect(selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA)).toEqual({
-      isOpen: false,
+      isOpen: true,
       activeSurfaceId: null,
       surfaces: [],
     });

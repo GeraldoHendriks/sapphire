@@ -106,6 +106,9 @@
       // named subcomponents even before they have callers; the file audit still
       // reports an entire component module when nothing imports it.
       "ignoreIssues": { "src/components/ui/*.tsx": ["exports", "nsExports", "duplicates"] },
+      // Sapphire replaces the side panel with Review mode but keeps upstream's panel module
+      // untouched, so T3 Code merges into it stay conflict-free.
+      "ignore": ["src/components/chat/ChatRightPanel.tsx"],
     },
     "apps/marketing": {
       // `astro check` runs from the typecheck task in vite.config.ts, which knip does not read.

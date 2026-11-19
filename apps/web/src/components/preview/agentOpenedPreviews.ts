@@ -50,6 +50,9 @@ export function revealServerTabs(
       );
     if (surface && force) {
       useRightPanelStore.getState().revealSurface(threadRef, surface.id);
+    } else if (!surface && force && !options.autoShowFloatingPreview) {
+      // Sapphire: an agent that insists on showing a page switches the thread to Review mode.
+      useRightPanelStore.getState().revealBrowser(threadRef, session.tabId);
     } else if (!surface) {
       usePreviewMiniPlayerStore.getState().open(threadRef, browserMiniPlayerSource(session.tabId));
     }

@@ -207,7 +207,8 @@ export const EnvironmentIdentificationMode = Schema.Literals([
   "none",
 ]);
 export type EnvironmentIdentificationMode = typeof EnvironmentIdentificationMode.Type;
-export const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "artwork";
+// Sapphire: a quiet text pill, not banner artwork, tells dev and nightly builds apart.
+export const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "pill";
 
 export const SnapShotKeyChord = KeybindingShortcut.check(
   Schema.makeFilter(
@@ -306,7 +307,8 @@ export const DefaultAppearancePreference = Schema.Literals(["", "light", "dark",
 export type DefaultAppearancePreference = typeof DefaultAppearancePreference.Type;
 
 export const DEFAULT_BROWSER_VIEWPORT: PreviewViewportSetting = FILL_PREVIEW_VIEWPORT;
-export const DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW = true;
+// Sapphire: agent-opened browsers and devices wait in Review mode instead of floating over chat.
+export const DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW = false;
 export {
   BROWSER_RECORDING_FRAME_RATES,
   BrowserRecordingFrameRate,

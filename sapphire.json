@@ -1,0 +1,9 @@
+{
+  "$comment": "Sapphire's own version. package.json versions track the upstream T3 Code release this build is based on, because T3 Code compares them for server/client compatibility, feature gates and database checks. Bump `version` for Sapphire releases and `upstream` when merging T3 Code.",
+  "version": "0.1.0",
+  "upstream": {
+    "repository": "pingdotgg/t3code",
+    "version": "0.1.10",
+    "commit": "767f194fd9"
+  }
+}

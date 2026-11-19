@@ -1,6 +1,6 @@
 import { msg, T, useGT } from "gt-react";
 
-import { APP_VERSION } from "../../branding";
+import { SAPPHIRE_VERSION, UPSTREAM_VERSION } from "../../sapphire/version";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { InlineButton } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -25,6 +25,11 @@ export function AboutVersionTitle() {
     },
   });
 
+  // Sapphire shows its own version; the T3 Code release it is based on goes along when copied.
+  const versionLabel = gt("{version} (T3 Code {upstream})", {
+    version: SAPPHIRE_VERSION,
+    upstream: UPSTREAM_VERSION,
+  });
   return (
     <span className="inline-flex items-baseline gap-2">
       <span>
@@ -36,10 +41,10 @@ export function AboutVersionTitle() {
             render={
               <InlineButton
                 tone="muted"
-                aria-label={gt("Copy version {version}", { version: APP_VERSION })}
-                onClick={() => copyToClipboard(APP_VERSION, undefined)}
+                aria-label={gt("Copy version {version}", { version: versionLabel })}
+                onClick={() => copyToClipboard(versionLabel, undefined)}
               >
-                {APP_VERSION}
+                {versionLabel}
               </InlineButton>
             }
           />

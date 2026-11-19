@@ -217,7 +217,12 @@ describe("revealServerTabs", () => {
     revealServerTabs(ref, [tab("tab_plain")], { autoShowFloatingPreview: false });
     expect(floatingTabId()).toBeNull();
     revealServerTabs(ref, [tab("tab_forced", true)], { autoShowFloatingPreview: false });
-    expect(floatingTabId()).toBe("tab_forced");
+    // Sapphire: with floating off, a forced reveal switches the thread to Review mode.
+    expect(floatingTabId()).toBeNull();
+    expect(useRightPanelStore.getState().byThreadKey[threadKey]).toMatchObject({
+      isOpen: true,
+      activeSurfaceId: "browser:tab_forced",
+    });
   });
 
   it("focuses a tab already in the panel instead of floating it when forced", () => {
@@ -321,7 +326,7 @@ describe("startAgentOpenedPreviews", () => {
       .byThreadKey[threadKeyToRead]?.surfaces.filter((surface) => surface.kind === "preview")
       .map((surface) => surface.id);
 
-  it("treats the first list as a baseline and floats tabs opened later", () => {
+  it("treats the first list as a baseline and keeps tabs opened later waiting in Review", () => {
     using _following = following();
     reconcilePreviewServerSessions(ref, {
       sessions: [serverTab({ tabId: "tab_restored" })],
@@ -341,7 +346,10 @@ describe("startAgentOpenedPreviews", () => {
       serverEpoch,
       revision: 2,
     });
-    expect(floatingTabId()).toBe("tab_agent");
+    // Sapphire: floating previews are off by default, so the tab waits, unseen, in Review mode.
+    expect(floatingTabId()).toBeNull();
+    expect(browserTabs()).toEqual(["browser:tab_restored", "browser:tab_agent"]);
+    expect(useRightPanelStore.getState().byThreadKey[threadKey]?.unseen).toBe(true);
   });
 
   it("reveals an existing tab only for a new reveal request", () => {
@@ -373,7 +381,7 @@ describe("startAgentOpenedPreviews", () => {
     expect(floatingTabId()).toBeNull();
   });
 
-  it("follows background threads and closes the floating browser when its session ends", () => {
+  it("follows background threads and drops a tab when its session ends", () => {
     using _following = following();
     const other = scopeThreadRef("env-1" as EnvironmentId, ThreadId.make("thread-2"));
     reconcilePreviewServerSessions(other, {
@@ -394,7 +402,8 @@ describe("startAgentOpenedPreviews", () => {
       serverEpoch,
       revision: 2,
     });
-    expect(floatingTabId()).toBe("tab_a");
+    expect(floatingTabId()).toBeNull();
+    expect(browserTabs()).toEqual(["browser:tab_a"]);
     applyPreviewServerEvent(ref, {
       type: "closed",
       threadId: "thread-1",
@@ -403,6 +412,6 @@ describe("startAgentOpenedPreviews", () => {
       serverEpoch,
       revision: 3,
     });
-    expect(floatingTabId()).toBeNull();
+    expect(browserTabs() ?? []).toEqual([]);
   });
 });

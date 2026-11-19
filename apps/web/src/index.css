@@ -2649,3 +2649,298 @@ code {
 .messages-timeline-scroll:focus-visible {
   outline: none;
 }
+
+/* ==========================================================================
+   Sapphire
+   Everything Sapphire changes in the stylesheet lives below, so upstream
+   T3 Code merges stay clean. Two layers: quieter base tokens (a flat,
+   minimal look with a sapphire accent), then the Chat/Review mode pieces.
+   ========================================================================== */
+
+:root {
+  --sapphire-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --sapphire-duration: 240ms;
+  --radius: 0.5rem;
+  --background: #fbfbfc;
+  --foreground: #1d1f24;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --primary: oklch(0.52 0.16 257);
+  --muted-foreground: #6b6f78;
+  --accent: #f1f2f4;
+  --border: #e6e7eb;
+  --input: #d9dbe0;
+  --sidebar: #f6f7f9;
+  --glass-blur: 6px;
+  --glass-opacity: 94%;
+
+  @variant dark {
+    --background: #0d0e11;
+    --foreground: #e8eaee;
+    --card: #131519;
+    --popover: #15171b;
+    --surface-raised: #131519;
+    --primary: oklch(0.64 0.15 256);
+    --muted-foreground: #8b9099;
+    --accent: rgb(255 255 255 / 5%);
+    --muted: rgb(255 255 255 / 3%);
+    --message-surface: #171a1f;
+    --border: rgb(255 255 255 / 7%);
+    --input: rgb(255 255 255 / 10%);
+    --sidebar: #0a0b0d;
+    --glass-blur: 8px;
+  }
+}
+
+[data-app-sidebar] {
+  --sidebar: #f6f7f9;
+  --background: #fbfbfc;
+
+  @variant dark {
+    --background: #0a0b0d;
+    --card: #0a0b0d;
+    --sidebar: #0a0b0d;
+    --accent: rgb(255 255 255 / 5%);
+    --border: rgb(255 255 255 / 6%);
+  }
+}
+
+@keyframes sapphire-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sapphire-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes sapphire-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Mode switch: one sliding thumb behind two labels. */
+@utility sapphire-mode-switch {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+@utility sapphire-mode-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  border-radius: 9999px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 2px rgb(0 0 0 / 6%);
+  transition: transform var(--sapphire-duration) var(--sapphire-ease);
+  :where([data-mode="review"]) > & {
+    transform: translateX(100%);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+@utility sapphire-unseen-dot {
+  background: var(--primary);
+  animation: sapphire-pop 200ms var(--sapphire-ease);
+}
+
+/* Review mode. */
+@utility sapphire-review-workspace {
+  padding-top: var(--workspace-topbar-height);
+  background: var(--background);
+  animation: sapphire-fade-in 180ms var(--sapphire-ease);
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility sapphire-pane {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  transition: opacity 150ms ease;
+}
+
+@utility sapphire-pane-header {
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+@utility sapphire-tab {
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+  &:hover {
+    background: var(--accent);
+  }
+}
+
+@utility sapphire-tab-active {
+  background: var(--accent);
+}
+
+@utility sapphire-count-badge {
+  display: inline-flex;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0 0.3rem;
+  background: rgb(255 255 255 / 22%);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility sapphire-agent-banner {
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+  animation: sapphire-fade-in 180ms var(--sapphire-ease);
+}
+
+@utility sapphire-pulse {
+  background: var(--primary);
+  animation: sapphire-pulse 1.6s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility sapphire-divider {
+  position: relative;
+  touch-action: none;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 30% 50%;
+    width: 2px;
+    margin-left: -1px;
+    border-radius: 9999px;
+    background: transparent;
+    transition: background-color 150ms ease;
+  }
+  &[aria-orientation="horizontal"]::after {
+    inset: 50% 30%;
+    width: auto;
+    height: 2px;
+    margin-left: 0;
+    margin-top: -1px;
+  }
+  &:hover::after,
+  &[data-dragging]::after {
+    background: color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+}
+
+@utility sapphire-drop-preview {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
+  transition: all 150ms var(--sapphire-ease);
+}
+
+@utility sapphire-terminal-strip {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+@utility sapphire-verdict {
+  border: 1px solid transparent;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+  &:hover {
+    background: var(--accent);
+  }
+  &[data-selected] {
+    background: var(--accent);
+    border-color: var(--border);
+  }
+}
+
+@utility sapphire-quick-edit {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(88vw, 72rem);
+  max-width: 100%;
+  height: min(78vh, 52rem);
+}
+
+@utility sapphire-dock-close {
+  position: absolute;
+  top: -1.75rem;
+  right: 0.5rem;
+  display: flex;
+  width: 1.375rem;
+  height: 1.375rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  box-shadow: 0 0 0 1px var(--border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  &:hover {
+    color: var(--foreground);
+  }
+  :where([data-dock-open]) & {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* In Review mode the chat column becomes a see-through layer over the workspace: the header
+   stays as the top bar, the conversation hides, and the composer docks at the bottom edge,
+   sliding up like a dock when the pointer reaches it. */
+[data-sapphire-review] [data-chat-header] {
+  pointer-events: auto;
+}
+
+[data-sapphire-review] [data-sapphire-conversation] {
+  visibility: hidden;
+}
+
+[data-sapphire-review] [data-chat-composer-overlay] {
+  transform: translateY(calc(100% - 1rem));
+  opacity: 0.7;
+  transition:
+    transform 320ms var(--sapphire-ease),
+    opacity 200ms ease;
+}
+
+[data-sapphire-review][data-dock-open] [data-chat-composer-overlay] {
+  transform: none;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sapphire-review] [data-chat-composer-overlay] {
+    transition: none;
+  }
+}

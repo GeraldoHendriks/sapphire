@@ -71,12 +71,15 @@ way Zen builds on Firefox or Helium on Chromium.
 ## Releases
 
 - Every pull request raises `version` in `sapphire.json` (Sapphire CI checks it). When it merges,
-  `.github/workflows/sapphire-release.yml` builds the Linux AppImage and publishes GitHub release
-  `v<version>` with notes from the merged pull requests.
-- `scripts/sapphire/install-linux.sh` installs the newest release into `~/.local/opt/sapphire`
-  with an app-menu entry and a `sapphire-desktop` launcher. `--enable-timer` adds a systemd user
-  timer that installs new releases every 30 minutes; after that, `sapphire-update` runs it by
-  hand. The repository is private, so it downloads through an authenticated `gh`.
+  `.github/workflows/sapphire-release.yml` builds the Linux packages and publishes GitHub release
+  `v<version>`: `sapphire_<version>_amd64.deb`, an AppImage and `SHA256SUMS`, with notes from the
+  merged pull requests.
+- The .deb is package `sapphire` (installs to `/opt/Sapphire`) with version
+  `<sapphire version>+t3.<upstream version>`, so apt sees each release as an upgrade. It installs
+  beside T3 Code's `t3code` package.
+- `scripts/sapphire/sapphire-update.sh` (run as root) installs the newest release.
+  `--enable-timer` copies it to `/usr/local/sbin/sapphire-update` and adds a systemd timer that
+  checks every 30 minutes. It never upgrades a running Sapphire; it waits until the app is closed.
 - The app's own updater is off in these builds: `package.json` keeps the upstream version, which
   electron-updater could not order between Sapphire releases.
 
@@ -86,8 +89,7 @@ way Zen builds on Firefox or Helium on Chromium.
   reveal a browser tab, which opens Review mode.
 - The `t3` CLI and SSH remote setup still use T3 Code's npm package, and the in-app server
   update still points at T3 Code's releases. Don't use the in-app server update.
-- Only Linux (x64 AppImage) is built. The Linux AppStream metadata file and the GNOME
-  window-capture extension still carry T3 Code's ids.
+- Only Linux x64 is built. The GNOME window-capture extension still carries T3 Code's ids.
 - Release builds carry no Clerk or relay keys (T3 keeps them in its own CI secrets), so
   T3 Connect sign-in is unavailable in them.
 - Remote SSH and WSL environments still run T3 Code's runtime under `~/.t3` on the remote side.

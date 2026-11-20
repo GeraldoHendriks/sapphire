@@ -1,6 +1,7 @@
-# Builds the Sapphire Linux desktop app (AppImage) and publishes it as a GitHub
-# release. Every merge to main whose sapphire.json version has no release yet
-# becomes release v<version>; scripts/sapphire/install-linux.sh installs it.
+# Builds the Sapphire Linux desktop app (.deb and AppImage) and publishes it as
+# a GitHub release. Every merge to main whose sapphire.json version has no
+# release yet becomes release v<version>; scripts/sapphire/sapphire-update.sh
+# installs the .deb.
 # Pull requests that touch the release machinery build without publishing.
 name: Sapphire release
 
@@ -23,7 +24,7 @@ concurrency:
 
 jobs:
   linux:
-    name: Linux AppImage
+    name: Linux packages
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -74,18 +75,24 @@ jobs:
       # Without GITHUB_REPOSITORY the build bakes in no update feed, so the app's
       # own updater stays off. package.json keeps the upstream version, which
       # electron-updater can't order between Sapphire releases.
-      - name: Build AppImage
+      - name: Build .deb and AppImage
         if: steps.version.outputs.skip != 'true'
         run: env -u GITHUB_REPOSITORY vp run dist:desktop:linux --verbose
 
+      # dpkg orders packages by version, so the .deb carries Sapphire's version
+      # first and the upstream T3 Code version it is based on after it.
       - name: Name release files
         if: steps.version.outputs.skip != 'true'
         run: |
+          version="${{ steps.version.outputs.version }}"
+          upstream="$(jq -r .version apps/desktop/package.json)"
           mkdir -p out
-          appimage="$(ls release/*.AppImage | head -n 1)"
-          name="Sapphire-${{ steps.version.outputs.version }}-x86_64.AppImage"
-          mv "$appimage" "out/$name"
-          (cd out && sha256sum "$name" > "$name.sha256")
+          mv release/*.AppImage "out/Sapphire-$version-x86_64.AppImage"
+          sudo dpkg-deb -R release/*.deb deb-root
+          sudo sed -i "s/^Version: .*/Version: $version+t3.$upstream/" deb-root/DEBIAN/control
+          sudo dpkg-deb -b deb-root "out/sapphire_${version}_amd64.deb"
+          dpkg-deb -f "out/sapphire_${version}_amd64.deb" Package Version
+          (cd out && sha256sum * > SHA256SUMS)
           ls -la out
 
       - name: Upload build

@@ -25,7 +25,9 @@ concurrency:
 jobs:
   linux:
     name: Linux packages
-    runs-on: ubuntu-latest
+    # Native modules link against the runner's glibc; 24.04 matches the
+    # build's glibc ceiling (scripts/linux-glibc.ts) and Linux Mint 22.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -69,8 +71,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             native/*/target
-          key: sapphire-native-${{ runner.os }}-${{ hashFiles('native/*/Cargo.lock') }}
-          restore-keys: sapphire-native-${{ runner.os }}-
+          key: sapphire-native-ubuntu-2404-${{ hashFiles('native/*/Cargo.lock') }}
+          restore-keys: sapphire-native-ubuntu-2404-
 
       # Without GITHUB_REPOSITORY the build bakes in no update feed, so the app's
       # own updater stays off. package.json keeps the upstream version, which

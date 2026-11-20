@@ -26,6 +26,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
+      # Every merged pull request becomes a release (sapphire-release.yml), so
+      # each one raises the version in sapphire.json.
+      - name: Sapphire version is bumped
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          base="$(git show "$BASE_SHA:sapphire.json" | jq -r .version)"
+          head="$(jq -r .version sapphire.json)"
+          highest="$(printf '%s\n%s\n' "$base" "$head" | sort -V | tail -n 1)"
+          if [[ "$head" == "$base" || "$highest" != "$head" ]]; then
+            echo "::error file=sapphire.json::Raise the Sapphire version above $base (now $head). Each merged pull request is released."
+            exit 1
+          fi
+          echo "Sapphire $base -> $head"
+
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
 

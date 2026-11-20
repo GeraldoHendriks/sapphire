@@ -2950,7 +2950,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.deb = {
       // FPM runs outside the staged app directory, so source paths must be absolute.
       fpm: [
-        `${path.join(repoRoot, "apps/desktop/resources/linux/com.t3tools.t3code.metainfo.xml")}=/usr/share/metainfo/com.t3tools.t3code.metainfo.xml`,
+        // Sapphire: its own AppStream file, so the deb installs beside T3 Code's.
+        `${path.join(repoRoot, "assets/sapphire/linux/dev.sapphire.app.metainfo.xml")}=/usr/share/metainfo/dev.sapphire.app.metainfo.xml`,
         `${path.join(repoRoot, "LICENSE")}=/usr/share/doc/sapphire/copyright`,
       ],
       // Debian 13 and Ubuntu 24.04 use 64-bit-time names; retain old-name fallbacks.
